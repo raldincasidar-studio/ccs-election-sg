@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Plus, Pencil, Trash2, Users, Search, ImageIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, Search, ImageIcon, ChevronDown, Check, X } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input, Select, TextArea } from '../../components/ui/Input';
 import { Modal, ConfirmModal } from '../../components/ui/Modal';
@@ -15,36 +15,216 @@ import {
 } from '../../services/api';
 import type { Position, Candidate, Partylist } from '../../types';
 
-function positionOptionLabel(p: Position): string {
-  switch (p.voter_eligibility) {
-    case 'all':
-      return `All - ${p.title}`;
-    case 'by_course':
-      return `${p.eligible_courses.join(', ')} - ${p.title}`;
-    case 'by_year_level':
-      return `${p.eligible_year_levels.join(', ')} - ${p.title}`;
-    case 'by_course_and_year':
-      return `${p.eligible_courses.join(', ')} / ${p.eligible_year_levels.join(', ')} - ${p.title}`;
-    default:
-      return p.title;
+// ─── Eligibility Chip Configs ─────────────────────────────────────────────────
+
+const COURSE_CHIP = 'bg-indigo-50 text-indigo-700 border border-indigo-200';
+const YEAR_CHIP   = 'bg-violet-50 text-violet-700 border border-violet-200';
+const ALL_CHIP    = 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+
+function EligibilityChips({ position, size = 'sm' }: { position: Position; size?: 'sm' | 'xs' }) {
+  const base = size === 'xs'
+    ? 'text-[9px] font-bold px-1.5 py-0.5 rounded-full'
+    : 'text-[10px] font-semibold px-1.5 py-0.5 rounded-full';
+
+  if (position.voter_eligibility === 'all') {
+    return (
+      <div className="flex flex-wrap gap-1">
+        <span className={`${base} ${ALL_CHIP}`}>All Voters</span>
+      </div>
+    );
   }
+
+  const showCourses = position.voter_eligibility === 'by_course' || position.voter_eligibility === 'by_course_and_year';
+  const showYears   = position.voter_eligibility === 'by_year_level' || position.voter_eligibility === 'by_course_and_year';
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {showCourses && position.eligible_courses.map((c) => (
+        <span key={c} className={`${base} ${COURSE_CHIP}`}>{c}</span>
+      ))}
+      {showYears && position.eligible_year_levels.map((y) => (
+        <span key={y} className={`${base} ${YEAR_CHIP}`}>{y}</span>
+      ))}
+    </div>
+  );
 }
 
-function EligibilityChips({ position }: { position: Position }) {
+// ─── Custom Position Select ───────────────────────────────────────────────────
+
+interface PositionSelectProps {
+  positions: Position[];
+  value: string;
+  onChange: (id: string) => void;
+  required?: boolean;
+  error?: string;
+}
+
+function PositionSelect({ positions, value, onChange, required, error }: PositionSelectProps) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const selected = positions.find((p) => p.id === value) ?? null;
+
+  const filtered = positions.filter((p) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      p.title.toLowerCase().includes(q) ||
+      p.eligible_courses.some((c) => c.toLowerCase().includes(q)) ||
+      p.eligible_year_levels.some((y) => y.toLowerCase().includes(q))
+    );
+  });
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      setSearch('');
+      setTimeout(() => searchRef.current?.focus(), 60);
+    }
+  }, [open]);
+
+  const handleSelect = (id: string) => {
+    onChange(id);
+    setOpen(false);
+  };
+
+  return (
+    <div className="flex flex-col gap-1" ref={containerRef}>
+      <label className="text-sm font-semibold text-gray-700">
+        Position{required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`w-full rounded-xl border-2 bg-white px-4 py-2.5 text-sm font-medium text-left transition-all duration-150 flex items-center gap-2
+          focus:outline-none focus:ring-2 focus:ring-[#2b2378]/30
+          ${error ? 'border-red-400' : open ? 'border-[#2b2378]' : 'border-gray-200 hover:border-gray-300'}`}
+      >
+        <span className="flex-1 min-w-0">
+          {selected ? (
+            <span className="flex flex-col gap-0.5">
+              <span className="text-gray-800 font-semibold text-sm">{selected.title}</span>
+              <EligibilityChips position={selected} size="xs" />
+            </span>
+          ) : (
+            <span className="text-gray-400 font-normal">-- Select Position --</span>
+          )}
+        </span>
+        <span className="shrink-0 flex items-center gap-1">
+          {selected && (
+            <span
+              className="p-0.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+              onMouseDown={(e) => { e.stopPropagation(); onChange(''); }}
+            >
+              <X size={12} />
+            </span>
+          )}
+          <ChevronDown
+            size={16}
+            className={`text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          />
+        </span>
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-white rounded-2xl border-2 border-[#2b2378]/20 shadow-xl overflow-hidden"
+          style={{ top: containerRef.current ? containerRef.current.getBoundingClientRect().bottom + window.scrollY + 4 : undefined,
+                   left: containerRef.current ? containerRef.current.getBoundingClientRect().left : undefined,
+                   width: containerRef.current ? containerRef.current.getBoundingClientRect().width : undefined,
+                   position: 'fixed',
+                   maxHeight: '280px',
+                   display: 'flex',
+                   flexDirection: 'column',
+          }}
+        >
+          {/* Search */}
+          <div className="p-2 border-b border-gray-100 shrink-0">
+            <div className="relative flex items-center">
+              <Search size={14} className="absolute left-3 text-gray-400 pointer-events-none" />
+              <input
+                ref={searchRef}
+                type="text"
+                placeholder="Search positions..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 text-sm rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#2b2378] focus:ring-1 focus:ring-[#2b2378]/20 transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Options */}
+          <div className="overflow-y-auto flex-1">
+            {filtered.length === 0 ? (
+              <div className="py-8 text-center text-sm text-gray-400">No positions match your search.</div>
+            ) : (
+              filtered.map((p) => {
+                const isSelected = p.id === value;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleSelect(p.id)}
+                    className={`w-full text-left px-4 py-3 flex items-start gap-3 transition-all duration-100 border-b border-gray-50 last:border-0
+                      ${isSelected
+                        ? 'bg-[#2b2378]/5 hover:bg-[#2b2378]/10'
+                        : 'hover:bg-gray-50'
+                      }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-semibold leading-tight mb-1 ${isSelected ? 'text-[#2b2378]' : 'text-gray-800'}`}>
+                        {p.title}
+                      </p>
+                      <EligibilityChips position={p} size="xs" />
+                    </div>
+                    {isSelected && (
+                      <Check size={14} className="text-[#2b2378] shrink-0 mt-0.5" />
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {error && <p className="text-xs text-red-500 font-medium">{error}</p>}
+    </div>
+  );
+}
+
+// ─── Eligibility chips used in list view ──────────────────────────────────────
+
+function EligibilityChipsList({ position }: { position: Position }) {
   if (position.voter_eligibility === 'all') return null;
   const showCourses = position.voter_eligibility === 'by_course' || position.voter_eligibility === 'by_course_and_year';
   const showYears   = position.voter_eligibility === 'by_year_level' || position.voter_eligibility === 'by_course_and_year';
   return (
     <div className="flex flex-wrap gap-1 mt-1">
       {showCourses && position.eligible_courses.map((c) => (
-        <span key={c} className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">{c}</span>
+        <span key={c} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${COURSE_CHIP}`}>{c}</span>
       ))}
       {showYears && position.eligible_year_levels.map((y) => (
-        <span key={y} className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-100">{y}</span>
+        <span key={y} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${YEAR_CHIP}`}>{y}</span>
       ))}
     </div>
   );
 }
+
+// ─── Form default ─────────────────────────────────────────────────────────────
 
 const defaultForm = (position_id = ''): Omit<Candidate, 'id' | 'vote_count'> => ({
   position_id,
@@ -55,6 +235,8 @@ const defaultForm = (position_id = ''): Omit<Candidate, 'id' | 'vote_count'> => 
   description: '',
   candidate_photo: '',
 });
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export function CandidatesManager() {
   const { showToast } = useApp();
@@ -237,7 +419,7 @@ export function CandidatesManager() {
                   {position.title}
                   <span className="text-gray-400 font-normal">({posCands.length})</span>
                 </h3>
-                <EligibilityChips position={position} />
+                <EligibilityChipsList position={position} />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {posCands.map((c) => (
@@ -312,11 +494,7 @@ export function CandidatesManager() {
                 className="hidden"
                 onChange={handlePhotoChange}
               />
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => fileRef.current?.click()}
-              >
+              <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()}>
                 Choose Photo
               </Button>
             </div>
@@ -330,14 +508,11 @@ export function CandidatesManager() {
             required
           />
 
-          <Select
-            label="Position"
+          {/* Custom position dropdown */}
+          <PositionSelect
+            positions={positions}
             value={form.position_id}
-            onChange={(e) => setForm((p) => ({ ...p, position_id: e.target.value }))}
-            options={[
-              { value: '', label: '-- Select Position --' },
-              ...positions.map((p) => ({ value: p.id, label: positionOptionLabel(p) })),
-            ]}
+            onChange={(id) => setForm((p) => ({ ...p, position_id: id }))}
             required
           />
 
@@ -357,7 +532,9 @@ export function CandidatesManager() {
             return pl ? (
               <div className="flex items-center gap-2 -mt-2 px-1">
                 <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: pl.color }} />
-                <span className="text-xs text-gray-500">Party color will be set to <strong>{pl.color}</strong></span>
+                <span className="text-xs text-gray-500">
+                  Party color will be set to <strong>{pl.color}</strong>
+                </span>
               </div>
             ) : null;
           })()}
@@ -385,6 +562,8 @@ export function CandidatesManager() {
   );
 }
 
+// ─── Candidate Card ───────────────────────────────────────────────────────────
+
 function CandidateCard({
   candidate,
   positionTitle,
@@ -400,11 +579,7 @@ function CandidateCard({
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex gap-3">
       <div className="w-14 h-14 rounded-xl bg-gray-100 shrink-0 overflow-hidden flex items-center justify-center">
         {candidate.candidate_photo ? (
-          <img
-            src={candidate.candidate_photo}
-            alt={candidate.name}
-            className="w-full h-full object-cover"
-          />
+          <img src={candidate.candidate_photo} alt={candidate.name} className="w-full h-full object-cover" />
         ) : (
           <Users size={22} className="text-gray-300" />
         )}
