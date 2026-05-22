@@ -10,6 +10,8 @@ import {
   Globe,
   BookOpen,
   GraduationCap,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { useApp } from '../../context/AppContext';
@@ -22,6 +24,72 @@ interface VotingBallotProps {
   onComplete: () => void;
 }
 
+interface UndervoteModalProps {
+  positionTitle: string;
+  selected: number;
+  max: number;
+  onProceed: () => void;
+  onClose: () => void;
+}
+
+function UndervoteModal({ positionTitle, selected, max, onProceed, onClose }: UndervoteModalProps) {
+  const isAbstain = selected === 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 pb-4 sm:pb-0">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-1.5 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+        >
+          <X size={18} />
+        </button>
+
+        <div className="flex flex-col items-center text-center gap-3">
+          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isAbstain ? 'bg-orange-100' : 'bg-yellow-100'}`}>
+            <AlertTriangle size={28} className={isAbstain ? 'text-orange-500' : 'text-yellow-500'} />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 text-lg leading-tight">
+              {isAbstain ? 'No Candidate Selected' : 'Undervote Detected'}
+            </h3>
+            <p className={`text-xs font-semibold mt-1 px-3 py-1 rounded-full inline-block ${isAbstain ? 'bg-orange-100 text-orange-600' : 'bg-yellow-100 text-yellow-700'}`}>
+              {isAbstain ? 'Abstaining from this position' : `${selected} of ${max} selected`}
+            </p>
+          </div>
+        </div>
+
+        <div className={`rounded-2xl p-4 ${isAbstain ? 'bg-orange-50 border border-orange-100' : 'bg-yellow-50 border border-yellow-100'}`}>
+          <p className="text-sm font-semibold text-gray-800 mb-1">{positionTitle}</p>
+          {isAbstain ? (
+            <p className="text-xs text-gray-500 leading-relaxed">
+              You have not chosen any candidate for this position. Proceeding means you are <strong>abstaining</strong> — your vote will not count for this race.
+            </p>
+          ) : (
+            <p className="text-xs text-gray-500 leading-relaxed">
+              This position allows up to <strong>{max} candidates</strong>, but you only selected <strong>{selected}</strong>. You may go back and select more, or proceed with fewer votes.
+            </p>
+          )}
+        </div>
+
+        <p className="text-xs text-gray-400 text-center">
+          This action is allowed. Once your ballot is submitted, it cannot be changed.
+        </p>
+
+        <div className="flex flex-col gap-2">
+          <Button fullWidth onClick={onProceed}>
+            Proceed Anyway
+          </Button>
+          <Button variant="ghost" fullWidth onClick={onClose}>
+            Go Back &amp; Select
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function VotingBallot({ student, onBack, onComplete }: VotingBallotProps) {
   const { updateStudentAuth, showToast } = useApp();
   const [positions, setPositions]       = useState<Position[]>([]);
@@ -31,6 +99,10 @@ export function VotingBallot({ student, onBack, onComplete }: VotingBallotProps)
   const [loading, setLoading]           = useState(true);
   const [submitting, setSubmitting]     = useState(false);
   const [showReview, setShowReview]     = useState(false);
+  const [undervoteModal, setUndervoteModal] = useState<{
+    visible: boolean;
+    onProceed: () => void;
+  }>({ visible: false, onProceed: () => {} });
 
   const unvotedPositions = positions.filter(
     (p) => !student.voted_positions.includes(p.id)
@@ -94,11 +166,11 @@ export function VotingBallot({ student, onBack, onComplete }: VotingBallotProps)
     );
   }
 
-  const currentPosition  = unvotedPositions[currentIdx];
-  const candidates       = candidateMap[currentPosition?.id] ?? [];
+  const currentPosition   = unvotedPositions[currentIdx];
+  const candidates        = candidateMap[currentPosition?.id] ?? [];
   const currentSelections = selections[currentPosition?.id] ?? [];
-  const maxVotes         = currentPosition?.max_votes ?? 1;
-  const progress         = (currentIdx / unvotedPositions.length) * 100;
+  const maxVotes          = currentPosition?.max_votes ?? 1;
+  const progress          = (currentIdx / unvotedPositions.length) * 100;
 
   function toggleCandidate(candidateId: string) {
     const posId  = currentPosition.id;
@@ -118,11 +190,7 @@ export function VotingBallot({ student, onBack, onComplete }: VotingBallotProps)
     }
   }
 
-  function handleNext() {
-    if (currentSelections.length === 0) {
-      showToast('warning', 'Please select at least one candidate before proceeding.');
-      return;
-    }
+  function proceedToNext() {
     if (currentIdx < unvotedPositions.length - 1) {
       setCurrentIdx((i) => i + 1);
     } else {
@@ -130,12 +198,21 @@ export function VotingBallot({ student, onBack, onComplete }: VotingBallotProps)
     }
   }
 
-  function handleSkip() {
-    if (currentIdx < unvotedPositions.length - 1) {
-      setCurrentIdx((i) => i + 1);
-    } else {
-      setShowReview(true);
+  function handleNext() {
+    const isAbstain    = currentSelections.length === 0;
+    const isUndervote  = currentSelections.length > 0 && currentSelections.length < maxVotes;
+
+    if (isAbstain || isUndervote) {
+      setUndervoteModal({
+        visible: true,
+        onProceed: () => {
+          setUndervoteModal((m) => ({ ...m, visible: false }));
+          proceedToNext();
+        },
+      });
+      return;
     }
+    proceedToNext();
   }
 
   async function handleSubmit() {
@@ -154,6 +231,16 @@ export function VotingBallot({ student, onBack, onComplete }: VotingBallotProps)
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      {undervoteModal.visible && (
+        <UndervoteModal
+          positionTitle={currentPosition.title}
+          selected={currentSelections.length}
+          max={maxVotes}
+          onProceed={undervoteModal.onProceed}
+          onClose={() => setUndervoteModal((m) => ({ ...m, visible: false }))}
+        />
+      )}
+
       {/* Header */}
       <div className="bg-[#2b2378] text-white px-4 py-3 shadow-lg">
         <div className="flex items-center gap-3 max-w-lg mx-auto">
@@ -206,10 +293,22 @@ export function VotingBallot({ student, onBack, onComplete }: VotingBallotProps)
           </div>
           <div className="mt-3 flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
             <span className="text-xs text-gray-500">Selected</span>
-            <span className="text-sm font-bold text-[#2b2378]">
+            <span className={`text-sm font-bold ${currentSelections.length === 0 ? 'text-gray-400' : currentSelections.length < maxVotes ? 'text-yellow-600' : 'text-[#2b2378]'}`}>
               {currentSelections.length} / {maxVotes}
             </span>
           </div>
+          {currentSelections.length === 0 && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-orange-500 bg-orange-50 rounded-xl px-3 py-2">
+              <AlertTriangle size={13} className="shrink-0" />
+              <span>No selection — proceeding will count as abstaining.</span>
+            </div>
+          )}
+          {currentSelections.length > 0 && currentSelections.length < maxVotes && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-yellow-600 bg-yellow-50 rounded-xl px-3 py-2">
+              <AlertTriangle size={13} className="shrink-0" />
+              <span>Undervote — you may still select {maxVotes - currentSelections.length} more.</span>
+            </div>
+          )}
         </div>
 
         {/* Candidates */}
@@ -277,12 +376,18 @@ export function VotingBallot({ student, onBack, onComplete }: VotingBallotProps)
 
         {/* Navigation */}
         <div className="flex gap-3 pb-4">
-          <Button variant="ghost" onClick={handleSkip} className="flex-1">
-            Skip
-          </Button>
+          {currentIdx > 0 && (
+            <Button
+              variant="ghost"
+              onClick={() => setCurrentIdx((i) => i - 1)}
+              className="shrink-0"
+            >
+              <ChevronLeft size={18} />
+            </Button>
+          )}
           <Button
             onClick={handleNext}
-            className="flex-1"
+            fullWidth
             rightIcon={
               currentIdx < unvotedPositions.length - 1 ? (
                 <ChevronRight size={18} />
@@ -338,9 +443,16 @@ function ReviewBallot({
 }) {
   const totalSelected = Object.values(selections).flat().length;
   const totalPositions = positions.length;
-  const skippedPositions = positions.filter(
+  const abstainedPositions = positions.filter(
     (p) => !selections[p.id] || selections[p.id].length === 0
   );
+  const undervotedPositions = positions.filter(
+    (p) =>
+      selections[p.id] &&
+      selections[p.id].length > 0 &&
+      selections[p.id].length < (p.max_votes ?? 1)
+  );
+  const hasIssues = abstainedPositions.length > 0 || undervotedPositions.length > 0;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -370,28 +482,54 @@ function ReviewBallot({
             </div>
             <div className="flex-1 bg-green-50 rounded-xl p-3 text-center">
               <p className="text-2xl font-bold text-green-600">
-                {totalPositions - skippedPositions.length}
+                {totalPositions - abstainedPositions.length}
               </p>
               <p className="text-xs text-gray-500">Positions Voted</p>
             </div>
-            {skippedPositions.length > 0 && (
-              <div className="flex-1 bg-yellow-50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-yellow-600">{skippedPositions.length}</p>
-                <p className="text-xs text-gray-500">Skipped</p>
+            {abstainedPositions.length > 0 && (
+              <div className="flex-1 bg-orange-50 rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-orange-500">{abstainedPositions.length}</p>
+                <p className="text-xs text-gray-500">Abstained</p>
               </div>
             )}
           </div>
         </div>
 
-        {skippedPositions.length > 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-3 flex items-start gap-2">
-            <AlertCircle size={18} className="text-yellow-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-yellow-800">Some positions are empty</p>
-              <p className="text-xs text-yellow-600 mt-0.5">
-                You skipped: {skippedPositions.map((p) => p.title).join(', ')}
-              </p>
+        {hasIssues && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col gap-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-800">Review before you submit</p>
+                <p className="text-xs text-amber-600 mt-0.5">
+                  You can still go back and adjust your selections.
+                </p>
+              </div>
             </div>
+            {abstainedPositions.length > 0 && (
+              <div className="bg-white rounded-xl px-3 py-2.5 border border-amber-100">
+                <p className="text-xs font-semibold text-orange-700 mb-1">Abstained ({abstainedPositions.length})</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {abstainedPositions.map((p) => (
+                    <span key={p.id} className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+                      {p.title}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {undervotedPositions.length > 0 && (
+              <div className="bg-white rounded-xl px-3 py-2.5 border border-amber-100">
+                <p className="text-xs font-semibold text-yellow-700 mb-1">Undervoted ({undervotedPositions.length})</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {undervotedPositions.map((p) => (
+                    <span key={p.id} className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
+                      {p.title} ({selections[p.id].length}/{p.max_votes})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -401,11 +539,28 @@ function ReviewBallot({
             const selected = (candidateMap[pos.id] ?? []).filter((c) =>
               selectedIds.includes(c.id)
             );
+            const isAbstained  = selected.length === 0;
+            const isUndervoted = selected.length > 0 && selected.length < (pos.max_votes ?? 1);
             return (
-              <div key={pos.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                <p className="font-bold text-[#2b2378] text-sm mb-2">{pos.title}</p>
+              <div
+                key={pos.id}
+                className={`bg-white rounded-2xl border shadow-sm p-4 ${
+                  isAbstained ? 'border-orange-200' : isUndervoted ? 'border-yellow-200' : 'border-gray-100'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-bold text-[#2b2378] text-sm">{pos.title}</p>
+                  {isAbstained && (
+                    <span className="text-xs bg-orange-100 text-orange-600 font-semibold px-2 py-0.5 rounded-full">Abstained</span>
+                  )}
+                  {isUndervoted && (
+                    <span className="text-xs bg-yellow-100 text-yellow-700 font-semibold px-2 py-0.5 rounded-full">
+                      Undervote {selected.length}/{pos.max_votes}
+                    </span>
+                  )}
+                </div>
                 {selected.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic">Skipped</p>
+                  <p className="text-xs text-gray-400 italic">No candidate selected</p>
                 ) : (
                   <div className="flex flex-col gap-2">
                     {selected.map((c) => (
