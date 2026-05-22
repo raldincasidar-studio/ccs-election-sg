@@ -14,7 +14,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
     },
   },
-  /*server: {
+  server: {
     host: "0.0.0.0",
     port: 5000,
     allowedHosts: true,
@@ -23,6 +23,6 @@ export default defineConfig({
         target: "http://localhost:3001",
         changeOrigin: true,
       },
-    }, 
-  },*/
+    },
+  },
 });
