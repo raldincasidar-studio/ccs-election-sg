@@ -1,0 +1,205 @@
+{
+  "info": {
+    "_postman_id": "791f15f0-c0d8-49d5-9602-edf8df36a449",
+    "name": "Jrmsu Online",
+    "description": "[API testing basics](https://go.postman.co/redirect/workspace?type=personal&collectionTemplateId=e9a37a28-055b-49cd-8c7e-97494a21eb54&sourceTemplateId=ddb19591-3097-41cf-82af-c84273e56719)  \n[API documentation](https://go.postman.co/redirect/workspace?type=personal&collectionTemplateId=e9c28f47-1253-44af-a2f3-20dce4da1f18&sourceTemplateId=ddb19591-3097-41cf-82af-c84273e56719)  \n[Authorization methods](https://go.postman.co/redirect/workspace?type=personal&collectionTemplateId=31a9a6ed-4cdf-4ced-984c-d12c9aec1c27&sourceTemplateId=ddb19591-3097-41cf-82af-c84273e56719)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "16103517"
+  },
+  "item": [
+    {
+      "name": "Request Token",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Api-Key",
+            "value": "asaguin.jr@gmail.com",
+            "type": "text"
+          },
+          {
+            "key": "Api-Secret",
+            "value": "D43m0nCh41N",
+            "type": "text"
+          },
+          {
+            "key": "User-Agent",
+            "value": "Coderstation-Protocol",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "https://jrmsu-arms.online/api/version-2/services/credential/token/request",
+          "protocol": "https",
+          "host": [
+            "jrmsu-arms",
+            "online"
+          ],
+          "path": [
+            "api",
+            "version-2",
+            "services",
+            "credential",
+            "token",
+            "request"
+          ]
+        },
+        "description": "## Request to Obtain JWT Token\n\nThis endpoint allows users to request a JSON Web Token (JWT) for authentication purposes. The token can be used in subsequent requests to access secured resources.\n\n### Request Method\n\n- **POST**\n    \n\n### Request URL\n\n- `https://jrmsu-arms.online/api/version-2/services/credential/token/request`\n    \n\n### Request Parameters\n\nThe request body must contain the following parameters:\n\n- **Status** (string): The current status of the token request.\n    \n- **JWToken** (string): The JSON Web Token that will be issued upon successful authentication.\n    \n- **Secret_Key** (string): A secret key used to validate the token request.\n    \n\n### Expected Response\n\nUpon successful execution, the API will return a response in JSON format with the following structure:\n\n``` json\n{\n    \"Status\": \"\",\n    \"JWToken\": \"\",\n    \"Secret_Key\": \"\"\n}\n\n ```\n\n- **Status**: Indicates the status of the token request.\n    \n- **JWToken**: Contains the issued JSON Web Token.\n    \n- **Secret_Key**: The secret key associated with the token.\n    \n\n### Additional Notes\n\n- Ensure that you have the necessary permissions to access this endpoint.\n    \n- The JWT received from this endpoint should be securely stored and included in the Authorization header for subsequent requests to protected routes.\n    \n- Handle the response appropriately to check for any errors or status messages."
+      },
+      "response": []
+    },
+    {
+      "name": "search_student",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ0a24iOiIxeDVuNTV6Nm9Wa0JJdnNFTU9DZTV2NnRPQmR2YnFJMXYzS2VPQjFFMUZaMjBsWGhaWlNqQTZtRm82dXJ1dHlUTUpHNkpIM0RtYWQxWDE0aTlQdG9xb3k5ejJXOXQxY0xLNWF6VW9Kb2F6LUlYNUo4R2EzYzN3YkFSSk9ZYUkxbXEtemQ0d2YtM1VtZWRkU0tiV3loamdoNndSSjZlSTJMMnJaNVpSa3lUd09YbVdFRTRFbGkxdnMwTGU3ZkNtMUNNRGNEVzZvVjB3MGVLTWMzd0J5ZXNSUExDOEJELTdfUVJyOGk0cHotUFFCcUc3QVQ1elBqaFBKXzgxeEpxUW84XzJlSXdscHdqZ0dMSEJOQlJYeGRkSExLZzMycmZfclJIaVlRWkV4MzhoayIsIm5iZiI6MTc3NjY1NzUxMywiaWF0IjoxNzc2NjU3NTEyLCJleHAiOjE3NzY2NTkzMTJ9.AonY1R3nZMGQAguNS48SIcg_4xHDwOOlXXMxPllYtDM",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Secret-Key",
+            "value": "48635A5051356D31494D5A4F3548436B4E726D4F755944505A4A4964547A76617772746241676E50556C6A6637784F496C426941574337516E2D54594E4D4E666262456F3055383462354B51512D7934634330394767",
+            "type": "text"
+          },
+          {
+            "key": "User-Agent",
+            "value": "Coderstation-Protocol",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n\"Student_ID\" : \"21-A-00864\",\r\n\"Semester\": \"2nd\",\r\n\"School_Year\": \"2024-2025\"\r\n}   ",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://jrmsu-arms.online/api/version-2/services/student/enrollment/search",
+          "protocol": "https",
+          "host": [
+            "jrmsu-arms",
+            "online"
+          ],
+          "path": [
+            "api",
+            "version-2",
+            "services",
+            "student",
+            "enrollment",
+            "search"
+          ]
+        },
+        "description": "## Endpoint Description\n\nThis endpoint allows users to search for student enrollment records based on specific criteria such as Student ID, Semester, and School Year. It is useful for retrieving detailed information about a student's enrollment status and academic details.\n\n### Request\n\n**Method:** POST  \n**URL:** `https://jrmsu-arms.online/api/version-2/services/student/enrollment/search`\n\n#### Request Body\n\nThe request body must be in JSON format and should include the following parameters:\n\n- **Student_ID** (string): The unique identifier for the student whose enrollment information is being queried.\n    \n- **Semester** (string): The semester for which the enrollment details are requested (e.g., \"1st\").\n    \n- **School_Year** (string): The academic year for which the enrollment details are requested (e.g., \"2025-2026\").\n    \n\n**Example Request Body:**\n\n``` json\n{\n  \"Student_ID\": \"21-A-00964\",\n  \"Semester\": \"1st\",\n  \"School_Year\": \"2025-2026\"\n}\n\n ```\n\n### Response\n\nUpon a successful request, the server responds with a status code of 200 and a JSON object containing the enrollment record and status.\n\n#### Response Structure\n\n- **Record** (object): Contains detailed information about the student's enrollment.\n    \n    - **Sex** (string): The gender of the student.\n        \n    - **Major** (string): The major field of study the student is enrolled in.\n        \n    - **College** (string): The college within the institution the student belongs to.\n        \n    - **Semester** (string): The semester of the enrollment record.\n        \n    - **Student_ID** (string): The unique identifier for the student.\n        \n    - **Year_Level** (integer): The current year level of the student.\n        \n    - **School_Year** (string): The academic year of the enrollment record.\n        \n    - **Student_Name** (string): The name of the student.\n        \n    - **Lecture_Units** (integer): The number of lecture units the student is enrolled in.\n        \n    - **Admission_Status** (string): The admission status of the student.\n        \n    - **Laboratory_Units** (integer): The number of laboratory units the student is enrolled in.\n        \n    - **Program_Enrolled** (string): The program in which the student is enrolled.\n        \n    - **Enrollment_Status** (string): The current status of the student's enrollment.\n        \n- **Status** (string): A general status message indicating the result of the request.\n    \n\n**Example Response:**\n\n``` json\n{\n  \"Record\": {\n    \"Sex\": \"\",\n    \"Major\": \"\",\n    \"College\": \"\",\n    \"Semester\": \"\",\n    \"Student_ID\": \"\",\n    \"Year_Level\": 0,\n    \"School_Year\": \"\",\n    \"Student_Name\": \"\",\n    \"Lecture_Units\": 0,\n    \"Admission_Status\": \"\",\n    \"Laboratory_Units\": 0,\n    \"Program_Enrolled\": \"\",\n    \"Enrollment_Status\": \"\"\n  },\n  \"Status\": \"\"\n}\n\n ```"
+      },
+      "response": []
+    },
+    {
+      "name": "login",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ0a24iOiIxeDVuNTV6Nm9Wa0JJdnNFTU9DZTV2NnRPQmR2YnFJMXYzS2VPQjFFMUZaMjBsWGhaWlNqQTZtRm82dXJ1dHlUTUpHNkpIM0RtYWQxWDE0aTlQdG9xb3k5ejJXOXQxY0xLNWF6VW9Kb2F6LUlYNUo4R2EzYzN3YkFSSk9ZYUkxbXEtemQ0d2YtM1VtZWRkU0tiV3loamdoNndSSjZlSTJMMnJaNVpSa3lUd09YbVdFRTRFbGkxdnMwTGU3ZkNtMUNNRGNEVzZvVjB3MGVLTWMzd0J5ZXNSUExDOEJELTdfUVJyOGk0cHotUFFCcUc3QVQ1elBqaFBKXzgxeEpxUW84XzJlSXdscHdqZ0dMSEJOQlJYeGRkSExLZzMycmZfclJIaVlRWkV4MzhoayIsIm5iZiI6MTc3ODYzNzc2OSwiaWF0IjoxNzc4NjM3NzY4LCJleHAiOjE3Nzg2Mzk1Njh9.KGIp9j2pum1IeAYGVMDEIwhyZ-3iSI89xJFWxBDFVSU",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Secret-Key",
+            "value": "48635A5051356D31494D5A4F3548436B4E726D4F755944505A4A4964547A76617772746241676E50556C67416D357A545A346C76426C6A61774E476C594E436750614B64517A56496A7658417235302D6F37446B6651",
+            "type": "text"
+          },
+          {
+            "key": "User-Agent",
+            "value": "Coderstation-Protocol",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"Username\" : \"21-A-00964\",\r\n    \"Password\" : \"Ambotlamang1\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://jrmsu-arms.online/api/version-2/services/student/account/login",
+          "protocol": "https",
+          "host": [
+            "jrmsu-arms",
+            "online"
+          ],
+          "path": [
+            "api",
+            "version-2",
+            "services",
+            "student",
+            "account",
+            "login"
+          ]
+        },
+        "description": "### Purpose\n\nAuthenticates a student account using username and password.\n\n### Endpoint summary\n\n[https://jrmsu-arms.online/api/version-2/services/student/account/loginEndFragment](https://jrmsu-arms.online/api/version-2/services/student/account/loginEndFragment)\n\nRequired headers\n\n- `Secret-Key`: Required shared secret for request authorization.\n    \n- `User-Agent`: Required client identifier. Current value: `Coderstation-Protocol`\n    \n- Token : generated from request token api\n    \n- `Content-Type: application/json`\n    \n\n### Request body fields\n\n- `Username` (string, required): Student account username.\n    \n- `Password` (string, required): Student account password.\n    \n\nExample body:\n\n``` json\n{\n  \"Username\": \"21-A-00964\",\n  \"Password\": \"Ambotlamang11\"\n}\n\n ```"
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "id",
+      "value": "1"
+    },
+    {
+      "key": "base_url",
+      "value": "https://postman-rest-api-learner.glitch.me/"
+    }
+  ]
+}
