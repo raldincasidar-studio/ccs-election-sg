@@ -29,7 +29,7 @@ export function AuthPage() {
         <h2 className="text-lg sm:text-xl font-semibold text-[#f9c301] text-center mt-0.5">
           Student Org Election
         </h2>
-        <p className="text-white/50 text-xs mt-2 font-medium">Academic Year 2025–2026</p>
+        <p className="text-white/50 text-xs mt-2 font-medium">Student Org Election Electronic Voting System</p>
       </div>
 
       {/* Tab Switcher */}
