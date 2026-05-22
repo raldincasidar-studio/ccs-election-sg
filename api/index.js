@@ -15,6 +15,27 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '20mb' }));
 
+// ─── MongoDB Connection (serverless-safe cached connection) ───────────────────
+
+let isConnected = false;
+
+async function connectDB() {
+  if (isConnected && mongoose.connection.readyState === 1) return;
+  const uri = process.env.MONGODB_URI;
+  if (!uri) throw new Error('MONGODB_URI environment variable is not set.');
+  await mongoose.connect(uri);
+  isConnected = true;
+}
+
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    res.status(500).json({ error: 'Database connection failed: ' + err.message });
+  }
+});
+
 // ─── Schema JSON Transform ────────────────────────────────────────────────────
 
 const toJsonOpts = {
@@ -608,30 +629,24 @@ async function seed() {
   console.log('🎉 Seeding complete!');
 }
 
-// ─── Start ────────────────────────────────────────────────────────────────────
+// ─── Export for Vercel / Local Dev ───────────────────────────────────────────
 
-async function start() {
-  try {
-    const uri = process.env.MONGODB_URI;
-    if (!uri || uri.includes('YOUR_USER')) {
-      console.error('❌  MONGODB_URI is not configured. Set it in api/.env before starting.');
+module.exports = app;
+
+if (require.main === module) {
+  connectDB()
+    .then(async () => {
+      console.log('✅ Connected to MongoDB');
+      if (process.argv.includes('--seed')) {
+        await seed();
+        await mongoose.disconnect();
+        process.exit(0);
+      }
+      const PORT = process.env.PORT || 3001;
+      app.listen(PORT, () => console.log(`🚀 API server running on port ${PORT}`));
+    })
+    .catch((err) => {
+      console.error('❌ Failed to start:', err.message);
       process.exit(1);
-    }
-    await mongoose.connect(uri);
-    console.log('✅ Connected to MongoDB');
-
-    if (process.argv.includes('--seed')) {
-      await seed();
-      await mongoose.disconnect();
-      process.exit(0);
-    }
-
-    const PORT = process.env.PORT || 3001;
-    app.listen(PORT, () => console.log(`🚀 API server running on port ${PORT}`));
-  } catch (err) {
-    console.error('❌ Failed to start:', err.message);
-    process.exit(1);
-  }
+    });
 }
-
-start();
