@@ -51,7 +51,7 @@ export function LoginForm({ mode }: LoginFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
       <Input
         label={mode === 'admin' ? 'Username' : 'Student ID'}
         placeholder={mode === 'admin' ? 'Enter username' : 'e.g. 23-A-12345'}
