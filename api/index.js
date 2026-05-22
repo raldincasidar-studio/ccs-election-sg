@@ -67,9 +67,9 @@ const StudentSchema = new mongoose.Schema({
   last_name:       { type: String, required: true },
   year_level:      { type: String, required: true },
   course:          { type: String, required: true },
-  gender:          { type: String, enum: ['Male', 'Female', 'Other'], required: true },
-  birth_date:      { type: String, required: true },
-  school_year:     { type: String, required: true },
+  gender:          { type: String, enum: ['Male', 'Female', 'Other'], default: 'Other' },
+  birth_date:      { type: String, default: '' },
+  school_year:     { type: String, default: '2025-2026' },
   password:        { type: String, required: true },
   has_voted:       { type: Boolean, default: false },
   voted_positions: [{ type: String }],
@@ -128,6 +128,40 @@ const Position        = mongoose.model('Position', PositionSchema);
 const Candidate       = mongoose.model('Candidate', CandidateSchema);
 const Vote            = mongoose.model('Vote', VoteSchema);
 const ElectionSettings = mongoose.model('ElectionSettings', ElectionSettingsSchema);
+
+// ─── SSAAM Connection (read-only, separate connection) ────────────────────────
+
+const PROGRAM_MAP = {
+  BSCS: 'BS Computer Science',
+  BSIT: 'BS Information Technology',
+  BSIS: 'BS Information Systems',
+  ACT:  'Associate in Computer Technology',
+};
+
+let ssaamConn = null;
+let CcsStudent = null;
+
+async function getSSAAMStudent(student_id) {
+  if (!ssaamConn || ssaamConn.readyState !== 1) {
+    const uri = process.env.SSAAM_MONGODB_URI;
+    if (!uri) throw new Error('SSAAM_MONGODB_URI is not configured.');
+    ssaamConn = await mongoose.createConnection(uri).asPromise();
+  }
+  if (!CcsStudent) {
+    const schema = new mongoose.Schema({
+      student_id:  String,
+      first_name:  String,
+      middle_name: String,
+      last_name:   String,
+      year_level:  String,
+      program:     String,
+      email:       String,
+      status:      String,
+    }, { collection: 'ccs_students' });
+    CcsStudent = ssaamConn.model('CcsStudent', schema);
+  }
+  return CcsStudent.findOne({ student_id });
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -214,11 +248,54 @@ app.post('/api/auth/login/admin', async (req, res) => {
 app.post('/api/auth/login/student', async (req, res) => {
   try {
     const { student_id, password } = req.body;
-    const student = await Student.findOne({ student_id });
-    if (!student || !(await bcrypt.compare(password, student.password)))
-      return res.status(401).json({ error: 'Invalid Student ID or password.' });
-    const token = jwt.sign({ id: student._id, role: 'student' }, JWT_SECRET, { expiresIn: '12h' });
-    res.json({ token, user: student.toJSON() });
+    if (!student_id || !password)
+      return res.status(400).json({ error: 'Student ID and last name are required.' });
+
+    // 1. Check our own database first
+    const existing = await Student.findOne({ student_id });
+    if (existing) {
+      const match = await bcrypt.compare(password, existing.password)
+                 || await bcrypt.compare(password.toUpperCase(), existing.password);
+      if (!match) return res.status(401).json({ error: 'Invalid Student ID or password.' });
+      const token = jwt.sign({ id: existing._id, role: 'student' }, JWT_SECRET, { expiresIn: '12h' });
+      return res.json({ token, user: existing.toJSON() });
+    }
+
+    // 2. Not in our DB — look up in SSAAM
+    let ssaamStudent;
+    try {
+      ssaamStudent = await getSSAAMStudent(student_id);
+    } catch (e) {
+      return res.status(503).json({ error: 'Could not connect to SSAAM database. Please try again later.' });
+    }
+
+    if (!ssaamStudent) {
+      return res.status(404).json({
+        error: 'You are not yet registered in SSAAM. Please create your account at ssaam.vercel.app first.',
+        ssaam_url: 'https://ssaam.vercel.app/',
+      });
+    }
+
+    // 3. Verify last name as password (case-insensitive)
+    if (password.toUpperCase() !== ssaamStudent.last_name.toUpperCase()) {
+      return res.status(401).json({ error: 'Incorrect last name. Your password is your last name as registered in SSAAM.' });
+    }
+
+    // 4. Auto-register the student into our system
+    const hashedPassword = await bcrypt.hash(ssaamStudent.last_name.toUpperCase(), 10);
+    const newStudent = await Student.create({
+      student_id:  ssaamStudent.student_id,
+      first_name:  ssaamStudent.first_name,
+      middle_name: ssaamStudent.middle_name || '',
+      last_name:   ssaamStudent.last_name,
+      year_level:  ssaamStudent.year_level,
+      course:      PROGRAM_MAP[ssaamStudent.program] || ssaamStudent.program,
+      school_year: '2025-2026',
+      password:    hashedPassword,
+    });
+
+    const token = jwt.sign({ id: newStudent._id, role: 'student' }, JWT_SECRET, { expiresIn: '12h' });
+    return res.json({ token, user: newStudent.toJSON() });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

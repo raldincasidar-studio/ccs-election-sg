@@ -66,9 +66,10 @@ export function LoginForm({ mode }: LoginFormProps) {
         autoCapitalize="none"
       />
       <Input
-        label="Password"
+        label={mode === 'student' ? 'Last Name' : 'Password'}
         type={showPass ? 'text' : 'password'}
-        placeholder="Enter your password"
+        placeholder={mode === 'student' ? 'e.g. DELA CRUZ' : 'Enter your password'}
+        hint={mode === 'student' ? 'Enter your last name exactly as registered in SSAAM' : undefined}
         value={password}
         onChange={(e) => {
           setPassword(e.target.value);

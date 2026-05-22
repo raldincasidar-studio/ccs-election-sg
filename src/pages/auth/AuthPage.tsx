@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { LoginForm } from './LoginForm';
-import { RegisterForm } from './RegisterForm';
 import { Shield, GraduationCap } from 'lucide-react';
 
-type AuthTab = 'student-login' | 'student-register' | 'admin-login';
+type AuthTab = 'student-login' | 'admin-login';
 
 export function AuthPage() {
   const [tab, setTab] = useState<AuthTab>('student-login');
@@ -37,7 +36,7 @@ export function AuthPage() {
       <div className="flex justify-center px-4 mb-4">
         <div className="bg-white/10 rounded-2xl p-1 flex gap-1 w-full max-w-md">
           <TabBtn
-            active={tab === 'student-login' || tab === 'student-register'}
+            active={tab === 'student-login'}
             onClick={() => setTab('student-login')}
             icon={<GraduationCap size={16} />}
             label="Student"
@@ -77,37 +76,21 @@ export function AuthPage() {
             </div>
           )}
 
-          {(tab === 'student-login' || tab === 'student-register') && (
+          {tab === 'student-login' && (
             <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden">
-              {/* Sub-tabs */}
-              <div className="flex border-b border-gray-100">
-                <SubTab
-                  active={tab === 'student-login'}
-                  onClick={() => setTab('student-login')}
-                  label="Sign In"
-                />
-                <SubTab
-                  active={tab === 'student-register'}
-                  onClick={() => setTab('student-register')}
-                  label="Sign Up"
-                />
-              </div>
               <div className="p-6 sm:p-8">
-                {tab === 'student-login' ? (
-                  <>
-                    <LoginForm mode="student" />
-                    {!import.meta.env.PROD && (
-                      <DemoBox
-                        items={[
-                          { label: 'Student ID', value: '23-A-12345' },
-                          { label: 'Password', value: 'student123' },
-                        ]}
-                      />
-                    )}
-                  </>
-                ) : (
-                  <RegisterForm onSuccess={() => setTab('student-login')} />
-                )}
+                <LoginForm mode="student" />
+                <p className="mt-4 text-center text-xs text-gray-400">
+                  Not registered yet?{' '}
+                  <a
+                    href="https://ssaam.vercel.app/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#2b2378] font-semibold hover:underline"
+                  >
+                    Create your account at SSAAM
+                  </a>
+                </p>
               </div>
             </div>
           )}
