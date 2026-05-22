@@ -198,6 +198,128 @@ function PositionSelect({ positions, value, onChange, required, error }: Positio
 
 // ─── Eligibility chips used in list view ──────────────────────────────────────
 
+interface PositionFilterProps {
+  positions: Position[];
+  value: string;
+  onChange: (id: string) => void;
+}
+
+function PositionFilter({ positions, value, onChange }: PositionFilterProps) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const selected = value === 'all' ? null : positions.find((p) => p.id === value) ?? null;
+
+  const options = [
+    { id: 'all', title: 'All Positions', voter_eligibility: 'all' as const, eligible_courses: [], eligible_year_levels: [] },
+    ...positions,
+  ];
+
+  const filtered = options.filter((p) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      p.title.toLowerCase().includes(q) ||
+      p.eligible_courses.some((c) => c.toLowerCase().includes(q)) ||
+      p.eligible_year_levels.some((y) => y.toLowerCase().includes(q))
+    );
+  });
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      setSearch('');
+      setTimeout(() => searchRef.current?.focus(), 60);
+    }
+  }, [open]);
+
+  const handleSelect = (id: string) => {
+    onChange(id);
+    setOpen(false);
+  };
+
+  return (
+    <div className="flex flex-col gap-1" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`w-full rounded-xl border-2 bg-white px-4 py-2.5 text-sm font-medium text-left transition-all duration-150 flex items-center gap-2
+          focus:outline-none focus:ring-2 focus:ring-[#2b2378]/30
+          ${open ? 'border-[#2b2378]' : 'border-gray-200 hover:border-gray-300'}`}
+      >
+        <span className="flex-1 min-w-0">
+          {selected ? (
+            <span className="flex flex-col gap-0.5">
+              <span className="text-gray-800 font-semibold text-sm">{selected.title}</span>
+              <EligibilityChips position={selected} size="xs" />
+            </span>
+          ) : (
+            <span className="text-gray-500 font-medium text-sm">All Positions</span>
+          )}
+        </span>
+        <ChevronDown size={16} className={`text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="w-full bg-white rounded-2xl border-2 border-[#2b2378]/20 shadow-lg overflow-hidden flex flex-col" style={{ maxHeight: '260px' }}>
+          <div className="p-2 border-b border-gray-100 shrink-0">
+            <div className="relative flex items-center">
+              <Search size={14} className="absolute left-3 text-gray-400 pointer-events-none" />
+              <input
+                ref={searchRef}
+                type="text"
+                placeholder="Search positions..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 text-sm rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#2b2378] focus:ring-1 focus:ring-[#2b2378]/20 transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="overflow-y-auto flex-1 overscroll-contain">
+            {filtered.length === 0 ? (
+              <div className="py-8 text-center text-sm text-gray-400">No positions match your search.</div>
+            ) : (
+              filtered.map((p) => {
+                const isSelected = p.id === value;
+                const isAll = p.id === 'all';
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleSelect(p.id)}
+                    className={`w-full text-left px-4 py-3 flex items-start gap-3 transition-all duration-100 border-b border-gray-50 last:border-0
+                      ${isSelected ? 'bg-[#2b2378]/5' : 'hover:bg-gray-50 active:bg-gray-100'}`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-semibold leading-tight mb-1.5 ${isSelected ? 'text-[#2b2378]' : 'text-gray-800'}`}>
+                        {p.title}
+                      </p>
+                      {!isAll && <EligibilityChips position={p} size="xs" />}
+                    </div>
+                    {isSelected && <Check size={14} className="text-[#2b2378] shrink-0 mt-0.5" />}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EligibilityChipsList({ position }: { position: Position }) {
   if (position.voter_eligibility === 'all') return null;
   const showCourses = position.voter_eligibility === 'by_course' || position.voter_eligibility === 'by_course_and_year';
@@ -387,13 +509,10 @@ export function CandidatesManager() {
           />
         </div>
         <div className="min-w-48">
-          <Select
+          <PositionFilter
+            positions={positions}
             value={filterPosition}
-            onChange={(e) => setFilterPosition(e.target.value)}
-            options={[
-              { value: 'all', label: 'All Positions' },
-              ...positions.map((p) => ({ value: p.id, label: p.title })),
-            ]}
+            onChange={setFilterPosition}
           />
         </div>
       </div>
