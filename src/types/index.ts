@@ -26,9 +26,16 @@ export interface Student {
   voted_positions: string[];
 }
 
+export interface Partylist {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface Candidate {
   id: string;
   position_id: string;
+  partylist_id?: string;
   name: string;
   party: string;
   party_color: string;

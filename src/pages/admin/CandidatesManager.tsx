@@ -11,8 +11,24 @@ import {
   createCandidate,
   updateCandidate,
   deleteCandidate,
+  getPartylists,
 } from '../../services/api';
-import type { Position, Candidate } from '../../types';
+import type { Position, Candidate, Partylist } from '../../types';
+
+function positionOptionLabel(p: Position): string {
+  switch (p.voter_eligibility) {
+    case 'all':
+      return `All - ${p.title}`;
+    case 'by_course':
+      return `${p.eligible_courses.join(', ')} - ${p.title}`;
+    case 'by_year_level':
+      return `${p.eligible_year_levels.join(', ')} - ${p.title}`;
+    case 'by_course_and_year':
+      return `${p.eligible_courses.join(', ')} / ${p.eligible_year_levels.join(', ')} - ${p.title}`;
+    default:
+      return p.title;
+  }
+}
 
 function EligibilityChips({ position }: { position: Position }) {
   if (position.voter_eligibility === 'all') return null;
@@ -32,6 +48,7 @@ function EligibilityChips({ position }: { position: Position }) {
 
 const defaultForm = (position_id = ''): Omit<Candidate, 'id' | 'vote_count'> => ({
   position_id,
+  partylist_id: '',
   name: '',
   party: '',
   party_color: '#2b2378',
@@ -43,6 +60,7 @@ export function CandidatesManager() {
   const { showToast } = useApp();
   const [positions, setPositions] = useState<Position[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [partylists, setPartylists] = useState<Partylist[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState<Candidate | null>(null);
@@ -56,9 +74,10 @@ export function CandidatesManager() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    Promise.all([getPositions(), getCandidates()]).then(([p, c]) => {
+    Promise.all([getPositions(), getCandidates(), getPartylists()]).then(([p, c, pl]) => {
       setPositions(p);
       setCandidates(c);
+      setPartylists(pl);
       setLoading(false);
     });
   }, []);
@@ -74,6 +93,7 @@ export function CandidatesManager() {
     setEditTarget(c);
     setForm({
       position_id: c.position_id,
+      partylist_id: c.partylist_id ?? '',
       name: c.name,
       party: c.party,
       party_color: c.party_color,
@@ -96,10 +116,21 @@ export function CandidatesManager() {
     reader.readAsDataURL(file);
   };
 
+  const handlePartylistChange = (partylist_id: string) => {
+    if (!partylist_id) {
+      setForm((p) => ({ ...p, partylist_id: '', party: '', party_color: '#2b2378' }));
+      return;
+    }
+    const pl = partylists.find((x) => x.id === partylist_id);
+    if (pl) {
+      setForm((p) => ({ ...p, partylist_id: pl.id, party: pl.name, party_color: pl.color }));
+    }
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) { showToast('error', 'Candidate name is required.'); return; }
     if (!form.position_id) { showToast('error', 'Please select a position.'); return; }
-    if (!form.party.trim()) { showToast('error', 'Party affiliation is required.'); return; }
+    if (!form.partylist_id) { showToast('error', 'Please select a partylist.'); return; }
     setSaving(true);
     try {
       if (editTarget) {
@@ -144,7 +175,6 @@ export function CandidatesManager() {
     return matchPos && matchSearch;
   });
 
-  // Group by position
   const grouped = positions
     .filter((p) => filterPosition === 'all' || p.id === filterPosition)
     .map((p) => ({
@@ -299,34 +329,39 @@ export function CandidatesManager() {
             onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
             required
           />
+
           <Select
             label="Position"
             value={form.position_id}
             onChange={(e) => setForm((p) => ({ ...p, position_id: e.target.value }))}
             options={[
               { value: '', label: '-- Select Position --' },
-              ...positions.map((p) => ({ value: p.id, label: p.title })),
+              ...positions.map((p) => ({ value: p.id, label: positionOptionLabel(p) })),
             ]}
             required
           />
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Party Affiliation"
-              placeholder="e.g. TechForward Alliance"
-              value={form.party}
-              onChange={(e) => setForm((p) => ({ ...p, party: e.target.value }))}
-              required
-            />
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-semibold text-gray-700">Party Color</label>
-              <input
-                type="color"
-                value={form.party_color}
-                onChange={(e) => setForm((p) => ({ ...p, party_color: e.target.value }))}
-                className="w-full h-11 rounded-xl border-2 border-gray-200 p-1 cursor-pointer"
-              />
-            </div>
-          </div>
+
+          <Select
+            label="Partylist"
+            value={form.partylist_id ?? ''}
+            onChange={(e) => handlePartylistChange(e.target.value)}
+            options={[
+              { value: '', label: '-- Select Partylist --' },
+              ...partylists.map((pl) => ({ value: pl.id, label: pl.name })),
+            ]}
+            required
+          />
+
+          {form.partylist_id && (() => {
+            const pl = partylists.find((x) => x.id === form.partylist_id);
+            return pl ? (
+              <div className="flex items-center gap-2 -mt-2 px-1">
+                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: pl.color }} />
+                <span className="text-xs text-gray-500">Party color will be set to <strong>{pl.color}</strong></span>
+              </div>
+            ) : null;
+          })()}
+
           <TextArea
             label="Description / Platform"
             placeholder="Brief description of the candidate's platform and qualifications..."

@@ -96,8 +96,14 @@ const PositionSchema = new mongoose.Schema({
   is_active:          { type: Boolean, default: true },
 }, { timestamps: true, toJSON: toJsonOpts });
 
+const PartylistSchema = new mongoose.Schema({
+  name:  { type: String, required: true, unique: true },
+  color: { type: String, default: '#2b2378' },
+}, { timestamps: true, toJSON: toJsonOpts });
+
 const CandidateSchema = new mongoose.Schema({
   position_id:     { type: String, required: true },
+  partylist_id:    { type: String, default: '' },
   name:            { type: String, required: true },
   party:           { type: String, required: true },
   party_color:     { type: String, default: '#2b2378' },
@@ -122,6 +128,7 @@ const ElectionSettingsSchema = new mongoose.Schema({
 }, { timestamps: true, toJSON: toJsonOpts });
 
 const Program         = mongoose.model('Program', ProgramSchema);
+const Partylist       = mongoose.model('Partylist', PartylistSchema);
 const Admin           = mongoose.model('Admin', AdminSchema);
 const Student         = mongoose.model('Student', StudentSchema);
 const Position        = mongoose.model('Position', PositionSchema);
@@ -354,6 +361,46 @@ app.put('/api/programs/:id', auth, adminOnly, async (req, res) => {
 app.delete('/api/programs/:id', auth, adminOnly, async (req, res) => {
   try {
     await Program.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Partylist Routes ─────────────────────────────────────────────────────────
+
+app.get('/api/partylists', auth, async (req, res) => {
+  try {
+    const partylists = await Partylist.find().sort({ name: 1 });
+    res.json(partylists.map(p => p.toJSON()));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/partylists', auth, adminOnly, async (req, res) => {
+  try {
+    const { name, color } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Partylist name is required.' });
+    const dup = await Partylist.findOne({ name: new RegExp(`^${name.trim()}$`, 'i') });
+    if (dup) return res.status(409).json({ error: 'A partylist with that name already exists.' });
+    const partylist = await Partylist.create({ name: name.trim(), color: color || '#2b2378' });
+    res.status(201).json(partylist.toJSON());
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/partylists/:id', auth, adminOnly, async (req, res) => {
+  try {
+    const { name, color } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Partylist name is required.' });
+    const dup = await Partylist.findOne({ name: new RegExp(`^${name.trim()}$`, 'i'), _id: { $ne: req.params.id } });
+    if (dup) return res.status(409).json({ error: 'A partylist with that name already exists.' });
+    const partylist = await Partylist.findByIdAndUpdate(req.params.id, { name: name.trim(), color }, { new: true });
+    if (!partylist) return res.status(404).json({ error: 'Partylist not found.' });
+    await Candidate.updateMany({ partylist_id: req.params.id }, { party: name.trim(), party_color: color });
+    res.json(partylist.toJSON());
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/partylists/:id', auth, adminOnly, async (req, res) => {
+  try {
+    await Partylist.findByIdAndDelete(req.params.id);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

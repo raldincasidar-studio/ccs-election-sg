@@ -11,6 +11,7 @@ import {
   GraduationCap,
   ChevronRight,
   BookOpen,
+  Flag,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -20,6 +21,7 @@ export type AdminTab =
   | 'candidates'
   | 'students'
   | 'programs'
+  | 'partylists'
   | 'reports'
   | 'settings';
 
@@ -32,6 +34,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'positions', label: 'Positions', icon: ListOrdered },
+  { id: 'partylists', label: 'Partylists', icon: Flag },
   { id: 'candidates', label: 'Candidates', icon: Users },
   { id: 'students', label: 'Students', icon: GraduationCap },
   { id: 'programs', label: 'Programs', icon: BookOpen },

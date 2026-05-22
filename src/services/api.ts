@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Student, Candidate, Position, Program, Admin, ElectionSettings } from '../types';
+import type { Student, Candidate, Position, Program, Partylist, Admin, ElectionSettings } from '../types';
 
 // ─── Axios Instance ────────────────────────────────────────────────────────────
 
@@ -57,6 +57,27 @@ export async function registerStudent(
 ): Promise<Student> {
   const { data } = await api.post('/auth/register', studentData);
   return data as Student;
+}
+
+// ─── Partylists ───────────────────────────────────────────────────────────────
+
+export async function getPartylists(): Promise<Partylist[]> {
+  const { data } = await api.get('/partylists');
+  return data as Partylist[];
+}
+
+export async function createPartylist(payload: Omit<Partylist, 'id'>): Promise<Partylist> {
+  const { data } = await api.post('/partylists', payload);
+  return data as Partylist;
+}
+
+export async function updatePartylist(id: string, payload: Partial<Omit<Partylist, 'id'>>): Promise<Partylist> {
+  const { data } = await api.put(`/partylists/${id}`, payload);
+  return data as Partylist;
+}
+
+export async function deletePartylist(id: string): Promise<void> {
+  await api.delete(`/partylists/${id}`);
 }
 
 // ─── Programs ─────────────────────────────────────────────────────────────────
