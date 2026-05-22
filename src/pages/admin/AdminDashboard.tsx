@@ -3,6 +3,23 @@ import { Users, CheckSquare, Trophy, Layers, TrendingUp, AlertCircle } from 'luc
 import { StatCard } from '../../components/ui/Card';
 import { getDashboardStats } from '../../services/api';
 import type { DashboardStats } from '../../services/api';
+import type { Position } from '../../types';
+
+function EligibilityChips({ position }: { position: Position }) {
+  if (position.voter_eligibility === 'all') return null;
+  const showCourses = position.voter_eligibility === 'by_course' || position.voter_eligibility === 'by_course_and_year';
+  const showYears   = position.voter_eligibility === 'by_year_level' || position.voter_eligibility === 'by_course_and_year';
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {showCourses && position.eligible_courses.map((c) => (
+        <span key={c} className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">{c}</span>
+      ))}
+      {showYears && position.eligible_year_levels.map((y) => (
+        <span key={y} className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-100">{y}</span>
+      ))}
+    </div>
+  );
+}
 
 export function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -125,6 +142,7 @@ export function AdminDashboard() {
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-800 truncate">{position.title}</p>
+                  <EligibilityChips position={position} />
                   {leader ? (
                     <p className="text-xs text-gray-500 mt-0.5 truncate">
                       Leading:{' '}

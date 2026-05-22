@@ -14,6 +14,23 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Card';
 import { getElectionResults, getVoterMasterlist } from '../../services/api';
 import type { PositionReport, VoterMasterlist } from '../../services/api';
+import type { Position } from '../../types';
+
+function EligibilityChips({ position }: { position: Position }) {
+  if (position.voter_eligibility === 'all') return null;
+  const showCourses = position.voter_eligibility === 'by_course' || position.voter_eligibility === 'by_course_and_year';
+  const showYears   = position.voter_eligibility === 'by_year_level' || position.voter_eligibility === 'by_course_and_year';
+  return (
+    <div className="flex flex-wrap gap-1 mt-1 mb-0.5">
+      {showCourses && position.eligible_courses.map((c) => (
+        <span key={c} className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">{c}</span>
+      ))}
+      {showYears && position.eligible_year_levels.map((y) => (
+        <span key={y} className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-100">{y}</span>
+      ))}
+    </div>
+  );
+}
 
 type ReportTab = 'results' | 'masterlist';
 
@@ -202,6 +219,7 @@ function PositionResult({ report }: { report: PositionReport }) {
       <div className="px-5 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
         <div>
           <h3 className="font-bold text-gray-900">{report.position.title}</h3>
+          <EligibilityChips position={report.position} />
           <p className="text-xs text-gray-500 mt-0.5">
             {report.total_votes} total votes &bull; Electing {report.position.max_votes}
           </p>

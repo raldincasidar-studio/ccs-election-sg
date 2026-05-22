@@ -14,6 +14,22 @@ import {
 } from '../../services/api';
 import type { Position, Candidate } from '../../types';
 
+function EligibilityChips({ position }: { position: Position }) {
+  if (position.voter_eligibility === 'all') return null;
+  const showCourses = position.voter_eligibility === 'by_course' || position.voter_eligibility === 'by_course_and_year';
+  const showYears   = position.voter_eligibility === 'by_year_level' || position.voter_eligibility === 'by_course_and_year';
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {showCourses && position.eligible_courses.map((c) => (
+        <span key={c} className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">{c}</span>
+      ))}
+      {showYears && position.eligible_year_levels.map((y) => (
+        <span key={y} className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-100">{y}</span>
+      ))}
+    </div>
+  );
+}
+
 const defaultForm = (position_id = ''): Omit<Candidate, 'id' | 'vote_count'> => ({
   position_id,
   name: '',
@@ -185,11 +201,14 @@ export function CandidatesManager() {
         {filterPosition === 'all' ? (
           grouped.map(({ position, candidates: posCands }) => (
             <div key={position.id}>
-              <h3 className="font-bold text-[#2b2378] text-sm mb-2 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#f9c301] inline-block" />
-                {position.title}
-                <span className="text-gray-400 font-normal">({posCands.length})</span>
-              </h3>
+              <div className="mb-2">
+                <h3 className="font-bold text-[#2b2378] text-sm flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#f9c301] inline-block shrink-0" />
+                  {position.title}
+                  <span className="text-gray-400 font-normal">({posCands.length})</span>
+                </h3>
+                <EligibilityChips position={position} />
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {posCands.map((c) => (
                   <CandidateCard
