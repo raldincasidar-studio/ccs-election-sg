@@ -66,12 +66,14 @@ export function AuthPage() {
                 </div>
               </div>
               <LoginForm mode="admin" />
-              <DemoBox
-                items={[
-                  { label: 'Username', value: 'admin' },
-                  { label: 'Password', value: 'admin123' },
-                ]}
-              />
+              {!import.meta.env.PROD && (
+                <DemoBox
+                  items={[
+                    { label: 'Username', value: 'admin' },
+                    { label: 'Password', value: 'admin123' },
+                  ]}
+                />
+              )}
             </div>
           )}
 
@@ -94,12 +96,14 @@ export function AuthPage() {
                 {tab === 'student-login' ? (
                   <>
                     <LoginForm mode="student" />
-                    <DemoBox
-                      items={[
-                        { label: 'Student ID', value: '23-A-12345' },
-                        { label: 'Password', value: 'student123' },
-                      ]}
-                    />
+                    {!import.meta.env.PROD && (
+                      <DemoBox
+                        items={[
+                          { label: 'Student ID', value: '23-A-12345' },
+                          { label: 'Password', value: 'student123' },
+                        ]}
+                      />
+                    )}
                   </>
                 ) : (
                   <RegisterForm onSuccess={() => setTab('student-login')} />
@@ -187,5 +191,4 @@ function DemoBox({ items }: { items: { label: string; value: string }[] }) {
   );
 }
 
-// Need to import React for JSX
 import React from 'react';

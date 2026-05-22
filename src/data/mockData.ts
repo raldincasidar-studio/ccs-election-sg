@@ -30,7 +30,6 @@ export const mockAdmins: Admin[] = [
   {
     id: 'admin-1',
     username: 'admin',
-    password: 'admin123',
     name: 'Election Administrator',
   },
 ];

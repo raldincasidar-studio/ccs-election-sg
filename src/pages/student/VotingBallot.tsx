@@ -13,11 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { useApp } from '../../context/AppContext';
-import {
-  getEligiblePositions,
-  getCandidatesByPosition,
-  submitVotes,
-} from '../../services/api';
+import { getBallot, submitVotes } from '../../services/api';
 import type { Student, Position, Candidate } from '../../types';
 
 interface VotingBallotProps {
@@ -28,35 +24,38 @@ interface VotingBallotProps {
 
 export function VotingBallot({ student, onBack, onComplete }: VotingBallotProps) {
   const { updateStudentAuth, showToast } = useApp();
-  const [positions, setPositions] = useState<Position[]>([]);
+  const [positions, setPositions]       = useState<Position[]>([]);
   const [candidateMap, setCandidateMap] = useState<Record<string, Candidate[]>>({});
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [selections, setSelections] = useState<Record<string, string[]>>({});
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [showReview, setShowReview] = useState(false);
+  const [currentIdx, setCurrentIdx]     = useState(0);
+  const [selections, setSelections]     = useState<Record<string, string[]>>({});
+  const [loading, setLoading]           = useState(true);
+  const [submitting, setSubmitting]     = useState(false);
+  const [showReview, setShowReview]     = useState(false);
 
-  // Filter out already-voted positions
   const unvotedPositions = positions.filter(
     (p) => !student.voted_positions.includes(p.id)
   );
 
   useEffect(() => {
     const load = async () => {
-      const eligible = await getEligiblePositions(student);
-      setPositions(eligible);
-
-      // Load candidates for each position
-      const map: Record<string, Candidate[]> = {};
-      for (const pos of eligible) {
-        const cands = await getCandidatesByPosition(pos.id);
-        map[pos.id] = cands;
+      try {
+        const { ballot } = await getBallot();
+        const eligible = ballot.map((b) => b.position);
+        setPositions(eligible);
+        const map: Record<string, Candidate[]> = {};
+        for (const entry of ballot) {
+          map[entry.position.id] = entry.candidates;
+        }
+        setCandidateMap(map);
+      } catch (e: unknown) {
+        showToast('error', e instanceof Error ? e.message : 'Failed to load ballot.');
+      } finally {
+        setLoading(false);
       }
-      setCandidateMap(map);
-      setLoading(false);
     };
     load();
-  }, [student]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) {
     return (
@@ -95,22 +94,20 @@ export function VotingBallot({ student, onBack, onComplete }: VotingBallotProps)
     );
   }
 
-  const currentPosition = unvotedPositions[currentIdx];
-  const candidates = candidateMap[currentPosition?.id] ?? [];
+  const currentPosition  = unvotedPositions[currentIdx];
+  const candidates       = candidateMap[currentPosition?.id] ?? [];
   const currentSelections = selections[currentPosition?.id] ?? [];
-  const maxVotes = currentPosition?.max_votes ?? 1;
-  const progress = ((currentIdx) / unvotedPositions.length) * 100;
+  const maxVotes         = currentPosition?.max_votes ?? 1;
+  const progress         = (currentIdx / unvotedPositions.length) * 100;
 
   function toggleCandidate(candidateId: string) {
-    const posId = currentPosition.id;
+    const posId  = currentPosition.id;
     const current = selections[posId] ?? [];
-
     if (current.includes(candidateId)) {
       setSelections((p) => ({ ...p, [posId]: current.filter((id) => id !== candidateId) }));
     } else {
       if (current.length >= maxVotes) {
         if (maxVotes === 1) {
-          // Replace
           setSelections((p) => ({ ...p, [posId]: [candidateId] }));
         } else {
           showToast('warning', `You can only select ${maxVotes} candidate${maxVotes > 1 ? 's' : ''} for this position.`);
@@ -176,8 +173,6 @@ export function VotingBallot({ student, onBack, onComplete }: VotingBallotProps)
             {currentIdx + 1}/{unvotedPositions.length}
           </div>
         </div>
-
-        {/* Progress bar */}
         <div className="mt-3 max-w-lg mx-auto w-full">
           <div className="w-full bg-white/20 rounded-full h-1.5">
             <div
@@ -209,8 +204,6 @@ export function VotingBallot({ student, onBack, onComplete }: VotingBallotProps)
               </div>
             </div>
           </div>
-
-          {/* Selection counter */}
           <div className="mt-3 flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
             <span className="text-xs text-gray-500">Selected</span>
             <span className="text-sm font-bold text-[#2b2378]">
@@ -233,7 +226,6 @@ export function VotingBallot({ student, onBack, onComplete }: VotingBallotProps)
                     : 'border-gray-100 hover:border-gray-200 hover:shadow-md'
                 }`}
               >
-                {/* Photo */}
                 <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gray-100 shrink-0 flex items-center justify-center">
                   {candidate.candidate_photo ? (
                     <img
@@ -245,7 +237,6 @@ export function VotingBallot({ student, onBack, onComplete }: VotingBallotProps)
                     <User size={24} className="text-gray-300" />
                   )}
                 </div>
-
                 <div className="flex-1 min-w-0">
                   <p className={`font-bold text-base ${isSelected ? 'text-[#2b2378]' : 'text-gray-900'}`}>
                     {candidate.name}
@@ -263,13 +254,13 @@ export function VotingBallot({ student, onBack, onComplete }: VotingBallotProps)
                     {candidate.description}
                   </p>
                 </div>
-
-                {/* Selection indicator */}
-                <div className={`w-7 h-7 rounded-xl border-2 shrink-0 flex items-center justify-center transition-all ${
-                  isSelected
-                    ? 'bg-[#2b2378] border-[#2b2378]'
-                    : 'border-gray-200 bg-white'
-                }`}>
+                <div
+                  className={`w-7 h-7 rounded-xl border-2 shrink-0 flex items-center justify-center transition-all ${
+                    isSelected
+                      ? 'bg-[#2b2378] border-[#2b2378]'
+                      : 'border-gray-200 bg-white'
+                  }`}
+                >
                   {isSelected && <CheckCircle size={16} className="text-white" />}
                 </div>
               </button>
@@ -338,12 +329,12 @@ function ReviewBallot({
   onSubmit,
   submitting,
 }: {
-  positions: Position[];
+  positions:    Position[];
   candidateMap: Record<string, Candidate[]>;
-  selections: Record<string, string[]>;
-  onBack: () => void;
-  onSubmit: () => void;
-  submitting: boolean;
+  selections:   Record<string, string[]>;
+  onBack:       () => void;
+  onSubmit:     () => void;
+  submitting:   boolean;
 }) {
   const totalSelected = Object.values(selections).flat().length;
   const totalPositions = positions.length;
@@ -392,7 +383,6 @@ function ReviewBallot({
           </div>
         </div>
 
-        {/* Skipped warning */}
         {skippedPositions.length > 0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-3 flex items-start gap-2">
             <AlertCircle size={18} className="text-yellow-600 shrink-0 mt-0.5" />
@@ -405,14 +395,12 @@ function ReviewBallot({
           </div>
         )}
 
-        {/* Selections by position */}
         <div className="flex flex-col gap-3">
           {positions.map((pos) => {
             const selectedIds = selections[pos.id] ?? [];
             const selected = (candidateMap[pos.id] ?? []).filter((c) =>
               selectedIds.includes(c.id)
             );
-
             return (
               <div key={pos.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
                 <p className="font-bold text-[#2b2378] text-sm mb-2">{pos.title}</p>
@@ -443,7 +431,6 @@ function ReviewBallot({
           })}
         </div>
 
-        {/* Submit */}
         <div className="flex flex-col gap-3 pb-4">
           <p className="text-xs text-gray-500 text-center">
             Once submitted, your vote cannot be changed. Please review carefully.

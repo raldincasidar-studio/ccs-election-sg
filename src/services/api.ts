@@ -1,296 +1,246 @@
-/**
- * API Service Layer
- * All functions here use mock data but are structured to be easily replaced with
- * actual fetch/axios API calls later. Each function mimics an async API call pattern.
- */
+import axios from 'axios';
+import type { Student, Candidate, Position, Program, Admin, ElectionSettings } from '../types';
 
-import type {
-  Student,
-  Candidate,
-  Position,
-  Vote,
-  Admin,
-  ElectionSettings,
-  Course,
-  YearLevel,
-  Program,
-} from '../types';
+// ─── Axios Instance ────────────────────────────────────────────────────────────
 
-import {
-  mockAdmins,
-  mockStudents,
-  mockPositions,
-  mockCandidates,
-  mockVotes,
-  mockElectionSettings,
-  mockPrograms,
-} from '../data/mockData';
+const api = axios.create({ baseURL: '/api' });
 
-// ─── In-memory state (replaces DB) ───────────────────────────────────────────
-let _programs: Program[] = [...mockPrograms];
-let _students: Student[] = [...mockStudents];
-let _positions: Position[] = [...mockPositions];
-let _candidates: Candidate[] = [...mockCandidates];
-let _votes: Vote[] = [...mockVotes];
-let _settings: ElectionSettings = { ...mockElectionSettings };
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('election_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
-function delay(ms = 300) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// ─── Programs ─────────────────────────────────────────────────────────────────
-
-export async function getPrograms(): Promise<Program[]> {
-  await delay(100);
-  return [..._programs];
-}
-
-export async function createProgram(data: Omit<Program, 'id'>): Promise<Program> {
-  await delay();
-  const exists = _programs.find(
-    (p) => p.code.toLowerCase() === data.code.toLowerCase()
-  );
-  if (exists) throw new Error('A program with that code already exists.');
-  const newProg: Program = { ...data, id: `prog-${Date.now()}` };
-  _programs.push(newProg);
-  return newProg;
-}
-
-export async function updateProgram(id: string, data: Partial<Omit<Program, 'id'>>): Promise<Program> {
-  await delay();
-  const idx = _programs.findIndex((p) => p.id === id);
-  if (idx === -1) throw new Error('Program not found.');
-  if (data.code) {
-    const dup = _programs.find(
-      (p) => p.id !== id && p.code.toLowerCase() === data.code!.toLowerCase()
-    );
-    if (dup) throw new Error('A program with that code already exists.');
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('election_token');
+      localStorage.removeItem('election_user');
+      window.location.reload();
+    }
+    const message = err.response?.data?.error || err.message || 'Request failed';
+    return Promise.reject(new Error(message));
   }
-  _programs[idx] = { ..._programs[idx], ...data };
-  return { ..._programs[idx] };
+);
+
+// ─── Pagination Types ──────────────────────────────────────────────────────────
+
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
 }
 
-export async function deleteProgram(id: string): Promise<void> {
-  await delay();
-  _programs = _programs.filter((p) => p.id !== id);
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: Pagination;
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export async function loginAdmin(username: string, password: string): Promise<Admin> {
-  await delay();
-  const admin = mockAdmins.find(
-    (a) => a.username === username && a.password === password
-  );
-  if (!admin) throw new Error('Invalid admin credentials.');
-  return admin;
+  const { data } = await api.post('/auth/login/admin', { username, password });
+  localStorage.setItem('election_token', data.token);
+  return data.user as Admin;
 }
 
 export async function loginStudent(student_id: string, password: string): Promise<Student> {
-  await delay();
-  const student = _students.find(
-    (s) => s.student_id === student_id && s.password === password
-  );
-  if (!student) throw new Error('Invalid student ID or password.');
-  return student;
+  const { data } = await api.post('/auth/login/student', { student_id, password });
+  localStorage.setItem('election_token', data.token);
+  return data.user as Student;
 }
 
-export async function registerStudent(data: Omit<Student, 'id' | 'has_voted' | 'voted_positions'>): Promise<Student> {
-  await delay();
-  const exists = _students.find((s) => s.student_id === data.student_id);
-  if (exists) throw new Error('Student ID already registered.');
-  const newStudent: Student = {
-    ...data,
-    id: `stu-${Date.now()}`,
-    has_voted: false,
-    voted_positions: [],
-  };
-  _students.push(newStudent);
-  return newStudent;
+export async function registerStudent(
+  studentData: Omit<Student, 'id' | 'has_voted' | 'voted_positions'>
+): Promise<Student> {
+  const { data } = await api.post('/auth/register', studentData);
+  return data as Student;
 }
 
-// ─── Election Settings ────────────────────────────────────────────────────────
+// ─── Programs ─────────────────────────────────────────────────────────────────
 
-export async function getElectionSettings(): Promise<ElectionSettings> {
-  await delay(100);
-  return { ..._settings };
+export async function getPrograms(): Promise<Program[]> {
+  const { data } = await api.get<PaginatedResponse<Program>>('/programs', { params: { limit: 100 } });
+  return data.data;
 }
 
-export async function updateElectionSettings(data: Partial<ElectionSettings>): Promise<ElectionSettings> {
-  await delay();
-  _settings = { ..._settings, ...data };
-  return { ..._settings };
+export async function createProgram(payload: Omit<Program, 'id'>): Promise<Program> {
+  const { data } = await api.post('/programs', payload);
+  return data as Program;
+}
+
+export async function updateProgram(id: string, payload: Partial<Omit<Program, 'id'>>): Promise<Program> {
+  const { data } = await api.put(`/programs/${id}`, payload);
+  return data as Program;
+}
+
+export async function deleteProgram(id: string): Promise<void> {
+  await api.delete(`/programs/${id}`);
 }
 
 // ─── Positions ────────────────────────────────────────────────────────────────
 
 export async function getPositions(): Promise<Position[]> {
-  await delay(100);
-  return [..._positions].sort((a, b) => a.order - b.order);
+  const { data } = await api.get<PaginatedResponse<Position>>('/positions', { params: { limit: 100 } });
+  return data.data;
 }
 
-export async function createPosition(data: Omit<Position, 'id'>): Promise<Position> {
-  await delay();
-  const newPos: Position = { ...data, id: `pos-${Date.now()}` };
-  _positions.push(newPos);
-  return newPos;
+export async function createPosition(payload: Omit<Position, 'id'>): Promise<Position> {
+  const { data } = await api.post('/positions', payload);
+  return data as Position;
 }
 
-export async function updatePosition(id: string, data: Partial<Omit<Position, 'id'>>): Promise<Position> {
-  await delay();
-  const idx = _positions.findIndex((p) => p.id === id);
-  if (idx === -1) throw new Error('Position not found.');
-  _positions[idx] = { ..._positions[idx], ...data };
-  return { ..._positions[idx] };
+export async function updatePosition(id: string, payload: Partial<Omit<Position, 'id'>>): Promise<Position> {
+  const { data } = await api.put(`/positions/${id}`, payload);
+  return data as Position;
 }
 
 export async function deletePosition(id: string): Promise<void> {
-  await delay();
-  _positions = _positions.filter((p) => p.id !== id);
-  _candidates = _candidates.filter((c) => c.position_id !== id);
+  await api.delete(`/positions/${id}`);
 }
 
 // ─── Candidates ───────────────────────────────────────────────────────────────
 
-export async function getCandidates(): Promise<Candidate[]> {
-  await delay(100);
-  return [..._candidates];
+export async function getCandidates(params?: {
+  search?: string;
+  position_id?: string;
+  page?: number;
+  limit?: number;
+}): Promise<Candidate[]> {
+  const { data } = await api.get<PaginatedResponse<Candidate>>('/candidates', {
+    params: { limit: 500, ...params },
+  });
+  return data.data;
 }
 
 export async function getCandidatesByPosition(position_id: string): Promise<Candidate[]> {
-  await delay(100);
-  return _candidates.filter((c) => c.position_id === position_id);
+  return getCandidates({ position_id });
 }
 
-export async function createCandidate(data: Omit<Candidate, 'id' | 'vote_count'>): Promise<Candidate> {
-  await delay();
-  const newCand: Candidate = { ...data, id: `cand-${Date.now()}`, vote_count: 0 };
-  _candidates.push(newCand);
-  return newCand;
+export async function createCandidate(
+  payload: Omit<Candidate, 'id' | 'vote_count'>
+): Promise<Candidate> {
+  const { data } = await api.post('/candidates', payload);
+  return data as Candidate;
 }
 
-export async function updateCandidate(id: string, data: Partial<Omit<Candidate, 'id' | 'vote_count'>>): Promise<Candidate> {
-  await delay();
-  const idx = _candidates.findIndex((c) => c.id === id);
-  if (idx === -1) throw new Error('Candidate not found.');
-  _candidates[idx] = { ..._candidates[idx], ...data };
-  return { ..._candidates[idx] };
+export async function updateCandidate(
+  id: string,
+  payload: Partial<Omit<Candidate, 'id' | 'vote_count'>>
+): Promise<Candidate> {
+  const { data } = await api.put(`/candidates/${id}`, payload);
+  return data as Candidate;
 }
 
 export async function deleteCandidate(id: string): Promise<void> {
-  await delay();
-  _candidates = _candidates.filter((c) => c.id !== id);
+  await api.delete(`/candidates/${id}`);
 }
 
 // ─── Students ─────────────────────────────────────────────────────────────────
 
-export async function getStudents(): Promise<Student[]> {
-  await delay(100);
-  return [..._students];
+export interface StudentsFilter {
+  page?: number;
+  limit?: number;
+  search?: string;
+  year_level?: string;
+  course?: string;
+  voted?: string;
 }
 
-export async function createStudentAdmin(data: Omit<Student, 'id' | 'has_voted' | 'voted_positions'>): Promise<Student> {
-  await delay();
-  const exists = _students.find((s) => s.student_id === data.student_id);
-  if (exists) throw new Error('Student ID already exists.');
-  const newStudent: Student = {
-    ...data,
-    id: `stu-${Date.now()}`,
-    has_voted: false,
-    voted_positions: [],
-  };
-  _students.push(newStudent);
-  return newStudent;
+export async function getStudents(params?: StudentsFilter): Promise<PaginatedResponse<Student>> {
+  const { data } = await api.get('/students', { params });
+  return data as PaginatedResponse<Student>;
 }
 
-export async function updateStudent(id: string, data: Partial<Student>): Promise<Student> {
-  await delay();
-  const idx = _students.findIndex((s) => s.id === id);
-  if (idx === -1) throw new Error('Student not found.');
-  _students[idx] = { ..._students[idx], ...data };
-  return { ..._students[idx] };
+export async function createStudentAdmin(
+  payload: Omit<Student, 'id' | 'has_voted' | 'voted_positions'>
+): Promise<Student> {
+  const { data } = await api.post('/students', payload);
+  return data as Student;
+}
+
+export async function updateStudent(id: string, payload: Partial<Student>): Promise<Student> {
+  const { data } = await api.put(`/students/${id}`, payload);
+  return data as Student;
 }
 
 export async function deleteStudent(id: string): Promise<void> {
-  await delay();
-  _students = _students.filter((s) => s.id !== id);
+  await api.delete(`/students/${id}`);
 }
 
 // ─── Voting ───────────────────────────────────────────────────────────────────
 
-export async function getEligiblePositions(student: Student): Promise<Position[]> {
-  await delay(100);
-  return _positions
-    .filter((p) => p.is_active && isStudentEligible(student, p))
-    .sort((a, b) => a.order - b.order);
+export interface BallotEntry {
+  position: Position;
+  candidates: Candidate[];
 }
 
-export function isStudentEligible(student: Student, position: Position): boolean {
-  switch (position.voter_eligibility) {
-    case 'all':
-      return true;
-    case 'by_course':
-      return position.eligible_courses.includes(student.course as Course);
-    case 'by_year_level':
-      return position.eligible_year_levels.includes(student.year_level as YearLevel);
-    case 'by_course_and_year':
-      return (
-        position.eligible_courses.includes(student.course as Course) &&
-        position.eligible_year_levels.includes(student.year_level as YearLevel)
-      );
-    default:
-      return false;
-  }
+export interface BallotData {
+  student: Student;
+  ballot: BallotEntry[];
+}
+
+export async function getBallot(): Promise<BallotData> {
+  const { data } = await api.get('/votes/ballot');
+  return data as BallotData;
+}
+
+export async function getEligiblePositions(_student: Student): Promise<Position[]> {
+  const ballot = await getBallot();
+  return ballot.ballot.map((b) => b.position);
 }
 
 export async function submitVotes(
-  student: Student,
-  votesMap: Record<string, string[]> // position_id -> candidate_ids[]
+  _student: Student,
+  votesMap: Record<string, string[]>
 ): Promise<Student> {
-  await delay(500);
+  const { data } = await api.post('/votes/submit', { votesMap });
+  if (data.token) localStorage.setItem('election_token', data.token);
+  return data.student as Student;
+}
 
-  const newVotes: Vote[] = [];
-  const votedPositionIds: string[] = [...student.voted_positions];
+// ─── Settings ─────────────────────────────────────────────────────────────────
 
-  for (const [positionId, candidateIds] of Object.entries(votesMap)) {
-    if (votedPositionIds.includes(positionId)) continue;
-    for (const candidateId of candidateIds) {
-      newVotes.push({
-        id: `v-${Date.now()}-${Math.random()}`,
-        student_id: student.id,
-        position_id: positionId,
-        candidate_id: candidateId,
-        timestamp: new Date().toISOString(),
-      });
-      // update candidate vote count
-      const cIdx = _candidates.findIndex((c) => c.id === candidateId);
-      if (cIdx !== -1) _candidates[cIdx].vote_count++;
-    }
-    votedPositionIds.push(positionId);
-  }
+export async function getElectionSettings(): Promise<ElectionSettings> {
+  const { data } = await api.get('/settings');
+  return data as ElectionSettings;
+}
 
-  _votes.push(...newVotes);
+export async function updateElectionSettings(
+  payload: Partial<ElectionSettings>
+): Promise<ElectionSettings> {
+  const { data } = await api.put('/settings', payload);
+  return data as ElectionSettings;
+}
 
-  // Update student
-  const sIdx = _students.findIndex((s) => s.id === student.id);
-  const allPositions = _positions.filter((p) => p.is_active && isStudentEligible(student, p));
-  const allVotedNow = allPositions.every((p) => votedPositionIds.includes(p.id));
+// ─── Dashboard ────────────────────────────────────────────────────────────────
 
-  _students[sIdx] = {
-    ..._students[sIdx],
-    has_voted: allVotedNow,
-    voted_positions: votedPositionIds,
-  };
+export interface DashboardLeader {
+  position: Position;
+  leader: Candidate | null;
+  total_votes: number;
+}
 
-  return { ..._students[sIdx] };
+export interface DashboardStats {
+  students_total: number;
+  voted_count: number;
+  not_voted_count: number;
+  positions_count: number;
+  active_positions_count: number;
+  candidates_count: number;
+  turnout_percent: number;
+  leading_by_position: DashboardLeader[];
+  settings: ElectionSettings;
+}
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const { data } = await api.get('/dashboard/stats');
+  return data as DashboardStats;
 }
 
 // ─── Reports ──────────────────────────────────────────────────────────────────
-
-export async function getVotes(): Promise<Vote[]> {
-  await delay(100);
-  return [..._votes];
-}
 
 export interface PositionReport {
   position: Position;
@@ -299,26 +249,8 @@ export interface PositionReport {
 }
 
 export async function getElectionResults(): Promise<PositionReport[]> {
-  await delay(200);
-  const results: PositionReport[] = [];
-
-  for (const position of _positions.sort((a, b) => a.order - b.order)) {
-    const candidates = _candidates
-      .filter((c) => c.position_id === position.id)
-      .sort((a, b) => b.vote_count - a.vote_count);
-
-    const total_votes = candidates.reduce((sum, c) => sum + c.vote_count, 0);
-
-    const ranked = candidates.map((c, i) => ({
-      ...c,
-      rank: i + 1,
-      is_winner: i < position.max_votes,
-    }));
-
-    results.push({ position, candidates: ranked, total_votes });
-  }
-
-  return results;
+  const { data } = await api.get('/reports/results');
+  return data as PositionReport[];
 }
 
 export interface VoterMasterlist {
@@ -330,14 +262,29 @@ export interface VoterMasterlist {
 }
 
 export async function getVoterMasterlist(): Promise<VoterMasterlist> {
-  await delay(100);
-  const voted = _students.filter((s) => s.has_voted);
-  const not_voted = _students.filter((s) => !s.has_voted);
+  const { data } = await api.get('/reports/masterlist', { params: { limit: 1000 } });
+  const all: Student[] = data.data;
   return {
-    voted,
-    not_voted,
-    total: _students.length,
-    voted_count: voted.length,
-    not_voted_count: not_voted.length,
+    voted:           all.filter((s) => s.has_voted),
+    not_voted:       all.filter((s) => !s.has_voted),
+    total:           data.summary.total,
+    voted_count:     data.summary.voted_count,
+    not_voted_count: data.summary.not_voted_count,
   };
+}
+
+// ─── Compat helper ────────────────────────────────────────────────────────────
+
+export function isStudentEligible(student: Student, position: Position): boolean {
+  switch (position.voter_eligibility) {
+    case 'all': return true;
+    case 'by_course': return position.eligible_courses.includes(student.course);
+    case 'by_year_level': return position.eligible_year_levels.includes(student.year_level);
+    case 'by_course_and_year':
+      return (
+        position.eligible_courses.includes(student.course) &&
+        position.eligible_year_levels.includes(student.year_level)
+      );
+    default: return false;
+  }
 }

@@ -21,7 +21,7 @@ export interface Student {
   gender: Gender;
   birth_date: string;
   school_year: string;
-  password: string;
+  password?: string;
   has_voted: boolean;
   voted_positions: string[];
 }
@@ -65,7 +65,6 @@ export interface Vote {
 export interface Admin {
   id: string;
   username: string;
-  password: string;
   name: string;
 }
 
@@ -74,6 +73,7 @@ export type AuthUser =
   | { type: 'student'; data: Student };
 
 export interface ElectionSettings {
+  id?: string;
   title: string;
   school_year: string;
   is_open: boolean;

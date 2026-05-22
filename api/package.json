@@ -1,0 +1,20 @@
+{
+  "name": "jrmsu-election-api",
+  "version": "1.0.0",
+  "description": "JRMSU CCS Student Org Election API",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "seed": "node index.js --seed"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.8.3",
+    "sharp": "^0.33.5"
+  }
+}

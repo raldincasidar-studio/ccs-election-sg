@@ -18,9 +18,28 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 
+function loadStoredAuth(): AuthUser | null {
+  try {
+    const raw = localStorage.getItem('election_user');
+    return raw ? (JSON.parse(raw) as AuthUser) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authUser, setAuthUserState] = useState<AuthUser | null>(loadStoredAuth);
   const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const setAuthUser = useCallback((user: AuthUser | null) => {
+    setAuthUserState(user);
+    if (user) {
+      localStorage.setItem('election_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('election_user');
+      localStorage.removeItem('election_token');
+    }
+  }, []);
 
   const showToast = useCallback((type: Toast['type'], message: string) => {
     const id = `toast-${Date.now()}-${Math.random()}`;
@@ -35,7 +54,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateStudentAuth = useCallback((student: Student) => {
-    setAuthUser({ type: 'student', data: student });
+    const newAuth: AuthUser = { type: 'student', data: student };
+    setAuthUserState(newAuth);
+    localStorage.setItem('election_user', JSON.stringify(newAuth));
   }, []);
 
   return (
