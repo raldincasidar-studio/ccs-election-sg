@@ -139,17 +139,10 @@ function PositionSelect({ positions, value, onChange, required, error }: Positio
         </span>
       </button>
 
-      {/* Dropdown panel */}
+      {/* Inline dropdown panel — no fixed/absolute, flows naturally inside modal scroll */}
       {open && (
-        <div className="absolute z-50 mt-1 w-full bg-white rounded-2xl border-2 border-[#2b2378]/20 shadow-xl overflow-hidden"
-          style={{ top: containerRef.current ? containerRef.current.getBoundingClientRect().bottom + window.scrollY + 4 : undefined,
-                   left: containerRef.current ? containerRef.current.getBoundingClientRect().left : undefined,
-                   width: containerRef.current ? containerRef.current.getBoundingClientRect().width : undefined,
-                   position: 'fixed',
-                   maxHeight: '280px',
-                   display: 'flex',
-                   flexDirection: 'column',
-          }}
+        <div className="w-full bg-white rounded-2xl border-2 border-[#2b2378]/20 shadow-lg overflow-hidden flex flex-col"
+          style={{ maxHeight: '260px' }}
         >
           {/* Search */}
           <div className="p-2 border-b border-gray-100 shrink-0">
@@ -166,8 +159,8 @@ function PositionSelect({ positions, value, onChange, required, error }: Positio
             </div>
           </div>
 
-          {/* Options */}
-          <div className="overflow-y-auto flex-1">
+          {/* Options — scrollable */}
+          <div className="overflow-y-auto flex-1 overscroll-contain">
             {filtered.length === 0 ? (
               <div className="py-8 text-center text-sm text-gray-400">No positions match your search.</div>
             ) : (
@@ -179,13 +172,10 @@ function PositionSelect({ positions, value, onChange, required, error }: Positio
                     type="button"
                     onClick={() => handleSelect(p.id)}
                     className={`w-full text-left px-4 py-3 flex items-start gap-3 transition-all duration-100 border-b border-gray-50 last:border-0
-                      ${isSelected
-                        ? 'bg-[#2b2378]/5 hover:bg-[#2b2378]/10'
-                        : 'hover:bg-gray-50'
-                      }`}
+                      ${isSelected ? 'bg-[#2b2378]/5' : 'hover:bg-gray-50 active:bg-gray-100'}`}
                   >
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold leading-tight mb-1 ${isSelected ? 'text-[#2b2378]' : 'text-gray-800'}`}>
+                      <p className={`text-sm font-semibold leading-tight mb-1.5 ${isSelected ? 'text-[#2b2378]' : 'text-gray-800'}`}>
                         {p.title}
                       </p>
                       <EligibilityChips position={p} size="xs" />
