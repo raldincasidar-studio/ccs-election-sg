@@ -1,19 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { UserPlus } from 'lucide-react';
 import { Input, Select } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { useApp } from '../../context/AppContext';
-import { registerStudent } from '../../services/api';
-import type { Course, Gender, YearLevel } from '../../types';
+import { registerStudent, getPrograms } from '../../services/api';
+import type { Gender, YearLevel, Program } from '../../types';
 
-const COURSES: Course[] = [
-  'BS Computer Science',
-  'BS Information Technology',
-  'BS Information Systems',
-  'Associate in Computer Technology',
-];
-
-const YEAR_LEVELS: YearLevel[] = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
+const YEAR_LEVELS: YearLevel[] = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'];
 const GENDERS: Gender[] = ['Male', 'Female', 'Other'];
 
 interface Props {
@@ -23,13 +16,14 @@ interface Props {
 export function RegisterForm({ onSuccess }: Props) {
   const { showToast } = useApp();
   const [loading, setLoading] = useState(false);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [form, setForm] = useState({
     student_id: '',
     first_name: '',
     middle_name: '',
     last_name: '',
     year_level: '1st Year' as YearLevel,
-    course: 'BS Computer Science' as Course,
+    course: '',
     gender: 'Male' as Gender,
     birth_date: '',
     school_year: '2025-2026',
@@ -37,6 +31,15 @@ export function RegisterForm({ onSuccess }: Props) {
     confirm_password: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    getPrograms().then((progs) => {
+      setPrograms(progs);
+      if (progs.length > 0) {
+        setForm((prev) => ({ ...prev, course: progs[0].name }));
+      }
+    });
+  }, []);
 
   const set = (key: string, value: string) => {
     setForm((p) => ({ ...p, [key]: value }));
@@ -141,7 +144,7 @@ export function RegisterForm({ onSuccess }: Props) {
         label="Course / Program"
         value={form.course}
         onChange={(e) => set('course', e.target.value)}
-        options={COURSES.map((c) => ({ value: c, label: c }))}
+        options={programs.map((p) => ({ value: p.name, label: `${p.code} — ${p.name}` }))}
         required
       />
       <Input

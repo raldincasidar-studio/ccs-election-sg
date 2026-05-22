@@ -4,6 +4,7 @@ import { AdminDashboard } from './AdminDashboard';
 import { PositionsManager } from './PositionsManager';
 import { CandidatesManager } from './CandidatesManager';
 import { StudentsManager } from './StudentsManager';
+import { ProgramsManager } from './ProgramsManager';
 import { ReportsPage } from './ReportsPage';
 import { SettingsPage } from './SettingsPage';
 
@@ -16,6 +17,7 @@ export function AdminPage() {
       case 'positions': return <PositionsManager />;
       case 'candidates': return <CandidatesManager />;
       case 'students': return <StudentsManager />;
+      case 'programs': return <ProgramsManager />;
       case 'reports': return <ReportsPage />;
       case 'settings': return <SettingsPage />;
       default: return <AdminDashboard />;

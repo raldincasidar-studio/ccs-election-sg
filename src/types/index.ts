@@ -1,12 +1,14 @@
-export type YearLevel = '1st Year' | '2nd Year' | '3rd Year' | '4th Year';
+export type YearLevel = '1st Year' | '2nd Year' | '3rd Year' | '4th Year' | '5th Year';
 
-export type Course =
-  | 'BS Computer Science'
-  | 'BS Information Technology'
-  | 'BS Information Systems'
-  | 'Associate in Computer Technology';
+export type Course = string;
 
 export type Gender = 'Male' | 'Female' | 'Other';
+
+export interface Program {
+  id: string;
+  code: string;
+  name: string;
+}
 
 export interface Student {
   id: string;
@@ -21,7 +23,7 @@ export interface Student {
   school_year: string;
   password: string;
   has_voted: boolean;
-  voted_positions: string[]; // position IDs already voted
+  voted_positions: string[];
 }
 
 export interface Candidate {
@@ -45,7 +47,7 @@ export interface Position {
   id: string;
   title: string;
   order: number;
-  max_votes: number; // how many candidates a student can vote for this position
+  max_votes: number;
   voter_eligibility: VoterEligibility;
   eligible_courses: Course[];
   eligible_year_levels: YearLevel[];

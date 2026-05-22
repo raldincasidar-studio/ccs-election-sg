@@ -13,6 +13,7 @@ import type {
   ElectionSettings,
   Course,
   YearLevel,
+  Program,
 } from '../types';
 
 import {
@@ -22,9 +23,11 @@ import {
   mockCandidates,
   mockVotes,
   mockElectionSettings,
+  mockPrograms,
 } from '../data/mockData';
 
 // ─── In-memory state (replaces DB) ───────────────────────────────────────────
+let _programs: Program[] = [...mockPrograms];
 let _students: Student[] = [...mockStudents];
 let _positions: Position[] = [...mockPositions];
 let _candidates: Candidate[] = [...mockCandidates];
@@ -33,6 +36,43 @@ let _settings: ElectionSettings = { ...mockElectionSettings };
 
 function delay(ms = 300) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ─── Programs ─────────────────────────────────────────────────────────────────
+
+export async function getPrograms(): Promise<Program[]> {
+  await delay(100);
+  return [..._programs];
+}
+
+export async function createProgram(data: Omit<Program, 'id'>): Promise<Program> {
+  await delay();
+  const exists = _programs.find(
+    (p) => p.code.toLowerCase() === data.code.toLowerCase()
+  );
+  if (exists) throw new Error('A program with that code already exists.');
+  const newProg: Program = { ...data, id: `prog-${Date.now()}` };
+  _programs.push(newProg);
+  return newProg;
+}
+
+export async function updateProgram(id: string, data: Partial<Omit<Program, 'id'>>): Promise<Program> {
+  await delay();
+  const idx = _programs.findIndex((p) => p.id === id);
+  if (idx === -1) throw new Error('Program not found.');
+  if (data.code) {
+    const dup = _programs.find(
+      (p) => p.id !== id && p.code.toLowerCase() === data.code!.toLowerCase()
+    );
+    if (dup) throw new Error('A program with that code already exists.');
+  }
+  _programs[idx] = { ..._programs[idx], ...data };
+  return { ..._programs[idx] };
+}
+
+export async function deleteProgram(id: string): Promise<void> {
+  await delay();
+  _programs = _programs.filter((p) => p.id !== id);
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ import {
   X,
   GraduationCap,
   ChevronRight,
+  BookOpen,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -18,6 +19,7 @@ export type AdminTab =
   | 'positions'
   | 'candidates'
   | 'students'
+  | 'programs'
   | 'reports'
   | 'settings';
 
@@ -32,6 +34,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'positions', label: 'Positions', icon: ListOrdered },
   { id: 'candidates', label: 'Candidates', icon: Users },
   { id: 'students', label: 'Students', icon: GraduationCap },
+  { id: 'programs', label: 'Programs', icon: BookOpen },
   { id: 'reports', label: 'Reports', icon: BarChart3 },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
@@ -59,7 +62,7 @@ export function AdminLayout({ activeTab, onTabChange, children }: AdminLayoutPro
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -68,14 +71,14 @@ export function AdminLayout({ activeTab, onTabChange, children }: AdminLayoutPro
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — fixed on all screen sizes, always visible on desktop */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-[#2b2378] z-50 flex flex-col transition-transform duration-300 lg:translate-x-0 lg:static lg:z-auto ${
+        className={`fixed top-0 left-0 h-screen w-64 bg-[#2b2378] z-50 flex flex-col transition-transform duration-300 lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Logo */}
-        <div className="p-5 border-b border-white/10">
+        <div className="p-5 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#f9c301] flex items-center justify-center overflow-hidden shrink-0">
               <img
@@ -96,7 +99,7 @@ export function AdminLayout({ activeTab, onTabChange, children }: AdminLayoutPro
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-3 flex flex-col gap-1">
+        <nav className="flex-1 p-3 flex flex-col gap-1 overflow-y-auto">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -119,7 +122,7 @@ export function AdminLayout({ activeTab, onTabChange, children }: AdminLayoutPro
         </nav>
 
         {/* User + Logout */}
-        <div className="p-3 border-t border-white/10">
+        <div className="p-3 border-t border-white/10 shrink-0">
           <div className="px-4 py-2 mb-2">
             <p className="text-white font-semibold text-sm truncate">{admin?.name}</p>
             <p className="text-white/50 text-xs">Administrator</p>
@@ -134,8 +137,8 @@ export function AdminLayout({ activeTab, onTabChange, children }: AdminLayoutPro
         </div>
       </aside>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main content — offset on desktop to account for fixed sidebar */}
+      <div className="lg:ml-64 flex flex-col min-h-screen">
         {/* Top bar */}
         <header className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-30 shadow-sm">
           <button

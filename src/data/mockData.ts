@@ -5,7 +5,16 @@ import type {
   Vote,
   Admin,
   ElectionSettings,
+  Program,
 } from '../types';
+
+// ─── Programs ─────────────────────────────────────────────────────────────────
+export const mockPrograms: Program[] = [
+  { id: 'prog-1', code: 'BSCS', name: 'BS Computer Science' },
+  { id: 'prog-2', code: 'BSIT', name: 'BS Information Technology' },
+  { id: 'prog-3', code: 'BSIS', name: 'BS Information Systems' },
+  { id: 'prog-4', code: 'ACT', name: 'Associate in Computer Technology' },
+];
 
 // ─── Election Settings ────────────────────────────────────────────────────────
 export const mockElectionSettings: ElectionSettings = {

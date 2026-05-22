@@ -19,25 +19,20 @@ import {
   createStudentAdmin,
   updateStudent,
   deleteStudent,
+  getPrograms,
 } from '../../services/api';
-import type { Student, Course, Gender, YearLevel } from '../../types';
+import type { Student, Gender, YearLevel, Program } from '../../types';
 
-const COURSES: Course[] = [
-  'BS Computer Science',
-  'BS Information Technology',
-  'BS Information Systems',
-  'Associate in Computer Technology',
-];
-const YEAR_LEVELS: YearLevel[] = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
+const YEAR_LEVELS: YearLevel[] = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'];
 const GENDERS: Gender[] = ['Male', 'Female', 'Other'];
 
-const defaultForm = () => ({
+const defaultForm = (firstCourse: string) => ({
   student_id: '',
   first_name: '',
   middle_name: '',
   last_name: '',
   year_level: '1st Year' as YearLevel,
-  course: 'BS Computer Science' as Course,
+  course: firstCourse,
   gender: 'Male' as Gender,
   birth_date: '',
   school_year: '2025-2026',
@@ -47,6 +42,7 @@ const defaultForm = () => ({
 export function StudentsManager() {
   const { showToast } = useApp();
   const [students, setStudents] = useState<Student[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterYear, setFilterYear] = useState('all');
@@ -55,14 +51,15 @@ export function StudentsManager() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Student | null>(null);
   const [deleteModal, setDeleteModal] = useState<Student | null>(null);
-  const [form, setForm] = useState(defaultForm());
+  const [form, setForm] = useState(defaultForm(''));
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const load = async () => {
-    const data = await getStudents();
+    const [data, progs] = await Promise.all([getStudents(), getPrograms()]);
     setStudents(data);
+    setPrograms(progs);
     setLoading(false);
   };
 
@@ -87,7 +84,7 @@ export function StudentsManager() {
 
   const openAdd = () => {
     setEditTarget(null);
-    setForm(defaultForm());
+    setForm(defaultForm(programs[0]?.name ?? ''));
     setErrors({});
     setModalOpen(true);
   };
@@ -227,7 +224,7 @@ export function StudentsManager() {
           onChange={(e) => setFilterCourse(e.target.value)}
           options={[
             { value: 'all', label: 'All Courses' },
-            ...COURSES.map((c) => ({ value: c, label: c })),
+            ...programs.map((p) => ({ value: p.name, label: `${p.code} — ${p.name}` })),
           ]}
         />
         <Select
@@ -392,7 +389,7 @@ export function StudentsManager() {
             label="Course / Program"
             value={form.course}
             onChange={(e) => set('course', e.target.value)}
-            options={COURSES.map((c) => ({ value: c, label: c }))}
+            options={programs.map((p) => ({ value: p.name, label: `${p.code} — ${p.name}` }))}
           />
           <div className="grid grid-cols-2 gap-3">
             <Input

@@ -23,16 +23,11 @@ import {
   createPosition,
   updatePosition,
   deletePosition,
+  getPrograms,
 } from '../../services/api';
-import type { Position, VoterEligibility, Course, YearLevel } from '../../types';
+import type { Position, VoterEligibility, YearLevel, Program } from '../../types';
 
-const COURSES: Course[] = [
-  'BS Computer Science',
-  'BS Information Technology',
-  'BS Information Systems',
-  'Associate in Computer Technology',
-];
-const YEAR_LEVELS: YearLevel[] = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
+const YEAR_LEVELS: YearLevel[] = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'];
 
 const ELIGIBILITY_OPTIONS: { value: VoterEligibility; label: string }[] = [
   { value: 'all', label: 'All Students' },
@@ -66,6 +61,7 @@ const defaultForm = (): Omit<Position, 'id'> => ({
 export function PositionsManager() {
   const { showToast } = useApp();
   const [positions, setPositions] = useState<Position[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState<Position | null>(null);
@@ -75,8 +71,9 @@ export function PositionsManager() {
   const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
-    const data = await getPositions();
+    const [data, progs] = await Promise.all([getPositions(), getPrograms()]);
     setPositions(data);
+    setPrograms(progs);
     setLoading(false);
   };
 
@@ -138,12 +135,12 @@ export function PositionsManager() {
     }
   };
 
-  const toggleCourse = (c: Course) => {
+  const toggleCourse = (name: string) => {
     setForm((p) => ({
       ...p,
-      eligible_courses: p.eligible_courses.includes(c)
-        ? p.eligible_courses.filter((x) => x !== c)
-        : [...p.eligible_courses, c],
+      eligible_courses: p.eligible_courses.includes(name)
+        ? p.eligible_courses.filter((x) => x !== name)
+        : [...p.eligible_courses, name],
     }));
   };
 
@@ -321,17 +318,23 @@ export function PositionsManager() {
             <div>
               <p className="text-sm font-semibold text-gray-700 mb-2">Eligible Courses</p>
               <div className="flex flex-col gap-2">
-                {COURSES.map((c) => (
-                  <label key={c} className="flex items-center gap-2 cursor-pointer">
+                {programs.map((prog) => (
+                  <label key={prog.id} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={form.eligible_courses.includes(c)}
-                      onChange={() => toggleCourse(c)}
+                      checked={form.eligible_courses.includes(prog.name)}
+                      onChange={() => toggleCourse(prog.name)}
                       className="w-4 h-4 accent-[#2b2378] rounded"
                     />
-                    <span className="text-sm text-gray-700">{c}</span>
+                    <span className="text-sm text-gray-700">
+                      <span className="font-semibold text-[#2b2378] mr-1">{prog.code}</span>
+                      {prog.name}
+                    </span>
                   </label>
                 ))}
+                {programs.length === 0 && (
+                  <p className="text-xs text-gray-400">No programs found. Add programs in the Programs module.</p>
+                )}
               </div>
             </div>
           )}
