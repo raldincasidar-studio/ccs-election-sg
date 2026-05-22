@@ -38,7 +38,7 @@ export function LoginForm({ mode }: LoginFormProps) {
         setAuthUser({ type: 'admin', data: admin });
         showToast('success', `Welcome back, ${admin.name}!`);
       } else {
-        const student = await loginStudent(identifier.trim(), password);
+        const student = await loginStudent(identifier.trim().toUpperCase(), password.trim().toUpperCase());
         setAuthUser({ type: 'student', data: student });
         showToast('success', `Welcome, ${student.first_name}!`);
       }

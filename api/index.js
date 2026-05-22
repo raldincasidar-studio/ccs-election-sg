@@ -247,15 +247,15 @@ app.post('/api/auth/login/admin', async (req, res) => {
 
 app.post('/api/auth/login/student', async (req, res) => {
   try {
-    const { student_id, password } = req.body;
+    const student_id = String(req.body.student_id || '').trim().toUpperCase();
+    const password = String(req.body.password || '').trim().toUpperCase();
     if (!student_id || !password)
       return res.status(400).json({ error: 'Student ID and last name are required.' });
 
     // 1. Check our own database first
     const existing = await Student.findOne({ student_id });
     if (existing) {
-      const match = await bcrypt.compare(password, existing.password)
-                 || await bcrypt.compare(password.toUpperCase(), existing.password);
+      const match = await bcrypt.compare(password, existing.password);
       if (!match) return res.status(401).json({ error: 'Invalid Student ID or password.' });
       const token = jwt.sign({ id: existing._id, role: 'student' }, JWT_SECRET, { expiresIn: '12h' });
       return res.json({ token, user: existing.toJSON() });
@@ -277,12 +277,12 @@ app.post('/api/auth/login/student', async (req, res) => {
     }
 
     // 3. Verify last name as password (case-insensitive)
-    if (password.toUpperCase() !== ssaamStudent.last_name.toUpperCase()) {
+    if (password !== String(ssaamStudent.last_name || '').trim().toUpperCase()) {
       return res.status(401).json({ error: 'Incorrect last name. Your password is your last name as registered in SSAAM.' });
     }
 
     // 4. Auto-register the student into our system
-    const hashedPassword = await bcrypt.hash(ssaamStudent.last_name.toUpperCase(), 10);
+    const hashedPassword = await bcrypt.hash(String(ssaamStudent.last_name || '').trim().toUpperCase(), 10);
     const newStudent = await Student.create({
       student_id:  ssaamStudent.student_id,
       first_name:  ssaamStudent.first_name,
