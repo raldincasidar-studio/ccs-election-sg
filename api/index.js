@@ -699,6 +699,18 @@ app.get('/api/reports/masterlist', auth, adminOnly, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ─── Reset Votes ──────────────────────────────────────────────────────────────
+
+app.post('/api/reset-votes', authenticateToken, async (req, res) => {
+  try {
+    await Promise.all([
+      Candidate.updateMany({}, { $set: { vote_count: 0 } }),
+      Student.updateMany({}, { $set: { has_voted: false, voted_positions: [] } }),
+    ]);
+    res.json({ message: 'All votes and student vote records have been reset.' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ─── Production: Serve Frontend Build ────────────────────────────────────────
 
 if (process.env.NODE_ENV === 'production') {

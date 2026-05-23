@@ -294,6 +294,13 @@ export async function getVoterMasterlist(): Promise<VoterMasterlist> {
   };
 }
 
+// ─── Reset Votes ───────────────────────────────────────────────────────────────
+
+export async function resetVotes(): Promise<{ message: string }> {
+  const res = await api.post('/reset-votes');
+  return res.data;
+}
+
 // ─── Compat helper ────────────────────────────────────────────────────────────
 
 export function isStudentEligible(student: Student, position: Position): boolean {
