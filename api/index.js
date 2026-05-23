@@ -701,7 +701,7 @@ app.get('/api/reports/masterlist', auth, adminOnly, async (req, res) => {
 
 // ─── Reset Votes ──────────────────────────────────────────────────────────────
 
-app.post('/api/reset-votes', authenticateToken, async (req, res) => {
+app.post('/api/reset-votes', auth, adminOnly, async (req, res) => {
   try {
     await Promise.all([
       Candidate.updateMany({}, { $set: { vote_count: 0 } }),
