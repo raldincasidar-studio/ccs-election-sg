@@ -15,7 +15,17 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '20mb' }));
 
-// ─── MongoDB Connection (serverless-safe cached connection) ───────────────────
+// ─── MongoDB Connection ───────────────────────────────────────────────────────
+// M0 free tier allows ~500 connections total.
+// Keep the pool small so restarts and multiple deployments don't exhaust it.
+
+const MONGO_OPTS = {
+  maxPoolSize: 5,                 // max simultaneous connections per process
+  minPoolSize: 1,                 // keep 1 alive so first request is fast
+  serverSelectionTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
+  bufferCommands: false,          // fail fast instead of queuing forever
+};
 
 let isConnected = false;
 
@@ -23,9 +33,22 @@ async function connectDB() {
   if (isConnected && mongoose.connection.readyState === 1) return;
   const uri = process.env.MONGODB_URI;
   if (!uri) throw new Error('MONGODB_URI environment variable is not set.');
-  await mongoose.connect(uri);
+  await mongoose.connect(uri, MONGO_OPTS);
   isConnected = true;
 }
+
+// Close connections cleanly on process exit so Atlas doesn't hold
+// zombie connections open after deploys or restarts.
+async function gracefulShutdown(signal) {
+  console.log(`\n${signal} — closing MongoDB connections…`);
+  if (ssaamConn) {
+    try { await ssaamConn.close(); } catch (_) {}
+  }
+  await mongoose.disconnect();
+  process.exit(0);
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
 
 app.use(async (req, res, next) => {
   try {
@@ -152,7 +175,17 @@ async function getSSAAMStudent(student_id) {
   if (!ssaamConn || ssaamConn.readyState !== 1) {
     const uri = process.env.SSAAM_MONGODB_URI;
     if (!uri) throw new Error('SSAAM_MONGODB_URI is not configured.');
-    ssaamConn = await mongoose.createConnection(uri).asPromise();
+    // Close any stale connection before opening a new one
+    if (ssaamConn && ssaamConn.readyState !== 0) {
+      try { await ssaamConn.close(); } catch (_) {}
+    }
+    ssaamConn = await mongoose.createConnection(uri, {
+      maxPoolSize: 3,
+      minPoolSize: 0,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+    }).asPromise();
+    CcsStudent = null; // reset model so it's re-registered on the new connection
   }
   if (!CcsStudent) {
     const schema = new mongoose.Schema({
