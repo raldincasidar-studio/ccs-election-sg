@@ -274,23 +274,35 @@ export async function getElectionResults(): Promise<PositionReport[]> {
   return data as PositionReport[];
 }
 
-export interface VoterMasterlist {
-  voted: Student[];
-  not_voted: Student[];
+export interface MasterlistSummary {
   total: number;
   voted_count: number;
   not_voted_count: number;
 }
 
-export async function getVoterMasterlist(): Promise<VoterMasterlist> {
-  const { data } = await api.get('/reports/masterlist', { params: { limit: 1000 } });
-  const all: Student[] = data.data;
+export interface MasterlistPageResult {
+  students: Student[];
+  pagination: { page: number; limit: number; total: number; pages: number };
+  summary: MasterlistSummary;
+}
+
+export async function getMasterlistSummary(): Promise<MasterlistSummary> {
+  const { data } = await api.get('/reports/masterlist', { params: { limit: 1, page: 1 } });
+  return data.summary;
+}
+
+export async function getMasterlistPage(
+  group: 'voted' | 'not_voted',
+  page: number,
+  limit = 50,
+): Promise<MasterlistPageResult> {
+  const { data } = await api.get('/reports/masterlist', {
+    params: { voted: group, page, limit },
+  });
   return {
-    voted:           all.filter((s) => s.has_voted),
-    not_voted:       all.filter((s) => !s.has_voted),
-    total:           data.summary.total,
-    voted_count:     data.summary.voted_count,
-    not_voted_count: data.summary.not_voted_count,
+    students: data.data,
+    pagination: data.pagination,
+    summary: data.summary,
   };
 }
 

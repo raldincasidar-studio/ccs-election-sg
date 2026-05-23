@@ -10,12 +10,14 @@ import {
   TrendingUp,
   Award,
   Filter,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import React from 'react';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Card';
-import { getElectionResults, getVoterMasterlist } from '../../services/api';
-import type { PositionReport, VoterMasterlist } from '../../services/api';
+import { getElectionResults, getMasterlistSummary, getMasterlistPage } from '../../services/api';
+import type { PositionReport, MasterlistSummary, MasterlistPageResult } from '../../services/api';
 import type { Position } from '../../types';
 
 // ─── Chip constants ───────────────────────────────────────────────────────────
@@ -86,17 +88,15 @@ type ReportTab = 'results' | 'masterlist';
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function ReportsPage() {
-  const [activeTab, setActiveTab]     = useState<ReportTab>('results');
-  const [results, setResults]         = useState<PositionReport[]>([]);
-  const [masterlist, setMasterlist]   = useState<VoterMasterlist | null>(null);
-  const [loading, setLoading]         = useState(true);
+  const [activeTab, setActiveTab]       = useState<ReportTab>('results');
+  const [results, setResults]           = useState<PositionReport[]>([]);
+  const [loading, setLoading]           = useState(true);
   const [filterCourse, setFilterCourse] = useState('all');
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    Promise.all([getElectionResults(), getVoterMasterlist()]).then(([r, m]) => {
+    getElectionResults().then((r) => {
       setResults(r);
-      setMasterlist(m);
       setLoading(false);
     });
   }, []);
@@ -192,8 +192,8 @@ export function ReportsPage() {
         {activeTab === 'results' && (
           <ResultsView results={filteredResults} filterCourse={filterCourse} />
         )}
-        {activeTab === 'masterlist' && masterlist && (
-          <MasterlistView masterlist={masterlist} />
+        {activeTab === 'masterlist' && (
+          <MasterlistView />
         )}
       </div>
     </div>
@@ -442,68 +442,134 @@ function PositionResult({ report }: { report: PositionReport }) {
 
 // ─── MasterlistView ───────────────────────────────────────────────────────────
 
-function MasterlistView({ masterlist }: { masterlist: VoterMasterlist }) {
-  const turnout = masterlist.total > 0
-    ? Math.round((masterlist.voted_count / masterlist.total) * 100)
+const PAGE_LIMIT = 50;
+
+function MasterlistView() {
+  const [summary, setSummary] = useState<MasterlistSummary | null>(null);
+
+  useEffect(() => {
+    getMasterlistSummary().then(setSummary);
+  }, []);
+
+  const turnout = summary && summary.total > 0
+    ? Math.round((summary.voted_count / summary.total) * 100)
     : 0;
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Summary stats */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-4 text-center">
-          <p className="text-xl sm:text-2xl font-bold text-[#2b2378]">{masterlist.total}</p>
+          <p className="text-xl sm:text-2xl font-bold text-[#2b2378]">
+            {summary ? summary.total : '—'}
+          </p>
           <p className="text-xs text-gray-500 mt-0.5">Total</p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-4 text-center">
-          <p className="text-xl sm:text-2xl font-bold text-green-600">{masterlist.voted_count}</p>
+          <p className="text-xl sm:text-2xl font-bold text-green-600">
+            {summary ? summary.voted_count : '—'}
+          </p>
           <p className="text-xs text-gray-500 mt-0.5">Voted</p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-4 text-center">
-          <p className="text-xl sm:text-2xl font-bold text-yellow-600">{masterlist.not_voted_count}</p>
+          <p className="text-xl sm:text-2xl font-bold text-yellow-600">
+            {summary ? summary.not_voted_count : '—'}
+          </p>
           <p className="text-xs text-gray-500 mt-0.5">Pending</p>
         </div>
       </div>
 
+      {/* Turnout bar */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
         <div className="flex justify-between mb-2">
           <span className="text-sm font-bold text-gray-700">Voter Turnout</span>
-          <span className="text-sm font-bold text-[#2b2378]">{turnout}%</span>
+          <span className="text-sm font-bold text-[#2b2378]">{summary ? `${turnout}%` : '—'}</span>
         </div>
         <div className="w-full bg-gray-100 rounded-full h-3">
-          <div className="bg-[#2b2378] h-3 rounded-full transition-all" style={{ width: `${turnout}%` }} />
+          <div
+            className="bg-[#2b2378] h-3 rounded-full transition-all duration-500"
+            style={{ width: summary ? `${turnout}%` : '0%' }}
+          />
         </div>
       </div>
 
-      <MasterlistTable title="Students Who Voted" students={masterlist.voted} voted />
-      <MasterlistTable title="Students Who Have Not Voted" students={masterlist.not_voted} voted={false} />
+      <PaginatedMasterlistTable
+        group="voted"
+        title="Students Who Voted"
+        isVoted
+      />
+      <PaginatedMasterlistTable
+        group="not_voted"
+        title="Students Who Have Not Voted"
+        isVoted={false}
+      />
     </div>
   );
 }
 
-// ─── MasterlistTable ──────────────────────────────────────────────────────────
+// ─── PaginatedMasterlistTable ─────────────────────────────────────────────────
 
-function MasterlistTable({
+function PaginatedMasterlistTable({
+  group,
   title,
-  students,
-  voted,
+  isVoted,
 }: {
+  group: 'voted' | 'not_voted';
   title: string;
-  students: import('../../types').Student[];
-  voted: boolean;
+  isVoted: boolean;
 }) {
+  const [page, setPage]       = useState(1);
+  const [result, setResult]   = useState<MasterlistPageResult | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    getMasterlistPage(group, page, PAGE_LIMIT).then((r) => {
+      setResult(r);
+      setLoading(false);
+    });
+  }, [group, page]);
+
+  const pag = result?.pagination;
+  const students = result?.students ?? [];
+  const totalCount = pag?.total ?? 0;
+  const totalPages = pag?.pages ?? 1;
+  const rowStart = pag ? (pag.page - 1) * pag.limit + 1 : 1;
+  const rowEnd   = pag ? Math.min(pag.page * pag.limit, pag.total) : 0;
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="px-4 sm:px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
-        {voted ? (
-          <CheckCircle size={15} className="text-green-600 shrink-0" />
-        ) : (
-          <Clock size={15} className="text-yellow-600 shrink-0" />
+      {/* Header */}
+      <div className="px-4 sm:px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {isVoted ? (
+            <CheckCircle size={15} className="text-green-600 shrink-0" />
+          ) : (
+            <Clock size={15} className="text-yellow-600 shrink-0" />
+          )}
+          <h3 className="font-bold text-gray-900 text-sm">
+            {title}
+            {!loading && (
+              <span className="text-gray-400 font-normal ml-1">({totalCount})</span>
+            )}
+          </h3>
+        </div>
+        {/* Page info — top right */}
+        {!loading && totalPages > 1 && (
+          <span className="text-xs text-gray-400 shrink-0">
+            {rowStart}–{rowEnd} of {totalCount}
+          </span>
         )}
-        <h3 className="font-bold text-gray-900 text-sm">
-          {title} <span className="text-gray-400 font-normal">({students.length})</span>
-        </h3>
       </div>
-      <div className="overflow-x-auto">
+
+      {/* Table */}
+      <div className="overflow-x-auto relative">
+        {/* Loading overlay */}
+        {loading && (
+          <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
+            <div className="w-6 h-6 border-3 border-[#2b2378] border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-50">
@@ -518,7 +584,9 @@ function MasterlistTable({
           <tbody>
             {students.map((s, i) => (
               <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                <td className="px-3 sm:px-4 py-2.5 text-gray-400 text-xs">{i + 1}</td>
+                <td className="px-3 sm:px-4 py-2.5 text-gray-400 text-xs tabular-nums">
+                  {rowStart + i}
+                </td>
                 <td className="px-3 sm:px-4 py-2.5 font-mono text-xs font-semibold text-gray-700 whitespace-nowrap">
                   {s.student_id}
                 </td>
@@ -537,16 +605,85 @@ function MasterlistTable({
                 </td>
               </tr>
             ))}
-            {students.length === 0 && (
+            {!loading && students.length === 0 && (
               <tr>
                 <td colSpan={6} className="text-center py-8 text-gray-400 text-sm">
                   No students in this category.
                 </td>
               </tr>
             )}
+            {/* Skeleton rows while loading first page */}
+            {loading && result === null && Array.from({ length: 5 }).map((_, i) => (
+              <tr key={i} className="border-b border-gray-50">
+                {Array.from({ length: 6 }).map((_, j) => (
+                  <td key={j} className="px-3 sm:px-4 py-3">
+                    <div className="h-3 bg-gray-100 rounded-full animate-pulse" style={{ width: `${60 + (j * 10) % 40}%` }} />
+                  </td>
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
+
+      {/* Pagination footer */}
+      {totalPages > 1 && (
+        <div className="px-4 sm:px-5 py-3 border-t border-gray-100 flex items-center justify-between gap-2 bg-gray-50/50">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1 || loading}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600
+              hover:bg-white hover:border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
+          >
+            <ChevronLeft size={13} /> Prev
+          </button>
+
+          {/* Page number pills */}
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+              // Show pages around current, always show first/last
+              const maxShow = 7;
+              let pageNum: number | null;
+              if (totalPages <= maxShow) {
+                pageNum = i + 1;
+              } else {
+                const pages: (number | null)[] = [1];
+                if (page > 3) pages.push(null);
+                for (let p = Math.max(2, page - 1); p <= Math.min(totalPages - 1, page + 1); p++) pages.push(p);
+                if (page < totalPages - 2) pages.push(null);
+                pages.push(totalPages);
+                pageNum = pages[i] ?? null;
+                if (i >= pages.length) return null;
+              }
+              if (pageNum === null) {
+                return <span key={i} className="text-gray-400 text-xs px-1">…</span>;
+              }
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setPage(pageNum as number)}
+                  disabled={loading}
+                  className={`w-7 h-7 rounded-lg text-xs font-bold transition-all active:scale-95
+                    ${page === pageNum
+                      ? 'bg-[#2b2378] text-white'
+                      : 'text-gray-500 hover:bg-gray-100 disabled:opacity-40'}`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages || loading}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600
+              hover:bg-white hover:border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
+          >
+            Next <ChevronRight size={13} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
