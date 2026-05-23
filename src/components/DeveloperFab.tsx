@@ -5,7 +5,7 @@ export function DeveloperFab() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="fixed bottom-6 left-6 z-50 flex flex-col items-start gap-2">
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
       {open && (
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-4 w-60 mb-1 animate-in slide-in-from-bottom-2 duration-200">
           <div className="flex items-center gap-2 mb-3">
