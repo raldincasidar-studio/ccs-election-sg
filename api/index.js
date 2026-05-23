@@ -726,14 +726,14 @@ if (process.env.NODE_ENV === 'production') {
 async function seed() {
   console.log('🌱 Seeding database...');
 
-  const adminExists = await Admin.findOne({ username: 'admin' });
+  const adminExists = await Admin.findOne({ username: 'CCS_ELECTION_ADMIN' });
   if (!adminExists) {
     await Admin.create({
-      username: 'admin',
-      password: await bcrypt.hash('admin123', 10),
+      username: 'CCS_ELECTION_ADMIN',
+      password: await bcrypt.hash('CCX_3LECTION_ADMIN2026', 10),
       name: 'Election Administrator',
     });
-    console.log('✅ Admin created  →  username: admin  /  password: admin123');
+    console.log('✅ Admin created  →  username: CCS_ELECTION_ADMIN');
   } else {
     console.log('⚪ Admin already exists, skipping.');
   }
